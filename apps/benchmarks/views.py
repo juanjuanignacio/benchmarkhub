@@ -147,8 +147,9 @@ def _do_load_benchmark(slug, num_samples, benchmark_id):
             benchmark.save()
             return
 
-        # Mark as loading with progress tracking
-        benchmark.metadata = {'load_status': 'downloading', 'load_progress': 0, 'load_total': 0}
+        # Mark as loading with progress tracking + timestamp for staleness detection
+        import time
+        benchmark.metadata = {'load_status': 'downloading', 'load_progress': 0, 'load_total': 0, 'load_started': time.time()}
         benchmark.save()
 
         questions_data = loader.load_questions()
@@ -276,9 +277,22 @@ def benchmark_load_status(request, slug):
         return JsonResponse({'slug': slug, 'status': 'idle', 'progress': 0, 'total': 0,
                              'error': '', 'error_type': '', 'num_questions': 0, 'is_loaded': False})
     meta = benchmark.metadata or {}
+    status = meta.get('load_status', 'idle')
+
+    # Auto-reset stale loading states (thread crashed without updating)
+    if status in ('downloading', 'saving'):
+        import time
+        started = meta.get('load_started', 0)
+        if started and (time.time() - started) > 600:  # 10 minutes
+            benchmark.metadata = {'error': 'Loading timed out or the background process crashed. Please try again.',
+                                  'error_type': 'general'}
+            benchmark.save(update_fields=['metadata'])
+            meta = benchmark.metadata
+            status = 'idle'
+
     return JsonResponse({
         'slug': slug,
-        'status': meta.get('load_status', 'idle'),
+        'status': status,
         'progress': meta.get('load_progress', 0),
         'total': meta.get('load_total', 0),
         'error': meta.get('error', ''),
