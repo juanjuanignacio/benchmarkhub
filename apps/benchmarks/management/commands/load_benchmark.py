@@ -72,15 +72,17 @@ class Command(BaseCommand):
 
     def list_benchmarks(self):
         self.stdout.write(self.style.SUCCESS('Available benchmarks:'))
-        self.stdout.write('-' * 60)
+        self.stdout.write('-' * 80)
         for slug, loader_cls in BENCHMARK_REGISTRY.items():
             loader = loader_cls()
+            btype = getattr(loader, 'benchmark_type', 'text')
+            type_tag = {'text': '', 'vision': '[IMG]', 'audio': '[AUD]', 'agentic': '[AGT]'}.get(btype, '')
             try:
                 bench = Benchmark.objects.get(slug=slug)
                 status = self.style.SUCCESS(f'LOADED ({bench.num_questions} questions)')
             except Benchmark.DoesNotExist:
                 status = self.style.WARNING('not loaded')
-            self.stdout.write(f'  {slug:<20} [{loader.category:<12}] {loader.name} - {status}')
+            self.stdout.write(f'  {slug:<22} [{loader.category:<12}] {type_tag:>5} {loader.name} - {status}')
 
     def load_benchmark(self, slug, num_samples=0, force=False):
         loader = get_loader(slug)
@@ -113,6 +115,8 @@ class Command(BaseCommand):
 
         self.stdout.write(f'  Got {len(questions_data)} questions')
 
+        benchmark_type = getattr(loader, 'benchmark_type', 'text')
+
         with transaction.atomic():
             if benchmark is None:
                 benchmark = Benchmark.objects.create(
@@ -120,11 +124,13 @@ class Command(BaseCommand):
                     name=loader.name,
                     description=loader.description,
                     category=loader.category,
+                    benchmark_type=benchmark_type,
                 )
             else:
                 benchmark.name = loader.name
                 benchmark.description = loader.description
                 benchmark.category = loader.category
+                benchmark.benchmark_type = benchmark_type
                 benchmark.save()
 
             BenchmarkQuestion.objects.filter(benchmark=benchmark).delete()
@@ -142,6 +148,9 @@ class Command(BaseCommand):
                     correct_answer=str(qdata.get('correct_answer', '')),
                     subject=str(qdata.get('subject', '')),
                     difficulty=str(qdata.get('difficulty', '')),
+                    context=str(qdata.get('context', '')),
+                    image_paths=qdata.get('image_paths', []),
+                    audio_path=str(qdata.get('audio_path', '')),
                     metadata=qdata.get('metadata', {}),
                 ))
                 if len(batch) >= 500:

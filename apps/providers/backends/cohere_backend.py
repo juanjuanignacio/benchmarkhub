@@ -23,7 +23,8 @@ class CohereBackend(BaseProviderBackend):
         except ImportError:
             raise ImportError("cohere package not installed. Run: pip install cohere")
 
-    def complete(self, prompt: str, model: str, temperature: float = 0, max_tokens: int = 512) -> dict:
+    def complete(self, prompt: str, model: str, temperature: float = 0,
+                 max_tokens: int = 512, images=None) -> dict:
         start = time.time()
         try:
             client = self._get_client()

@@ -13,7 +13,8 @@ class VLLMBackend(BaseProviderBackend):
     def _base_url(self):
         return self._get_base_url(self.DEFAULT_BASE_URL).rstrip('/')
 
-    def complete(self, prompt: str, model: str, temperature: float = 0, max_tokens: int = 512) -> dict:
+    def complete(self, prompt: str, model: str, temperature: float = 0,
+                 max_tokens: int = 512, images=None) -> dict:
         start = time.time()
         # Try OpenAI-compatible chat completions first
         url = f"{self._base_url()}/v1/chat/completions"

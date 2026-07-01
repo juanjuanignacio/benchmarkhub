@@ -24,15 +24,31 @@ class AnthropicBackend(BaseProviderBackend):
         except ImportError:
             raise ImportError("anthropic package not installed. Run: pip install anthropic")
 
-    def complete(self, prompt: str, model: str, temperature: float = 0, max_tokens: int = 512) -> dict:
+    def complete(self, prompt: str, model: str, temperature: float = 0,
+                 max_tokens: int = 512, images=None) -> dict:
         start = time.time()
         try:
             client = self._get_client()
+            if images:
+                content = []
+                for b64 in images:
+                    content.append({
+                        'type': 'image',
+                        'source': {
+                            'type': 'base64',
+                            'media_type': 'image/jpeg',
+                            'data': b64,
+                        },
+                    })
+                content.append({'type': 'text', 'text': prompt})
+                messages = [{'role': 'user', 'content': content}]
+            else:
+                messages = [{'role': 'user', 'content': prompt}]
             resp = client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=messages,
             )
             text = resp.content[0].text if resp.content else ''
             return {'text': text, 'response_time': time.time() - start, 'error': None}

@@ -9,15 +9,21 @@
         <p class="text-muted mb-0">{{ registry_info|length }} benchmarks available</p>
     </div>
     <div>
-        <!-- Category filter -->
+        <!-- Category and type filters -->
         <form method="get" class="d-flex gap-2">
+            <select name="type" class="form-select form-select-sm border-secondary" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                {% for value, label in benchmark_types %}
+                <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
             <select name="category" class="form-select form-select-sm border-secondary" onchange="this.form.submit()">
                 <option value="">All Categories</option>
                 {% for value, label in categories %}
                 <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            {% if category_filter %}
+            {% if category_filter or type_filter %}
             <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
             {% endif %}
         </form>
@@ -27,10 +33,16 @@
 <div class="row g-3">
     {% for info in registry_info %}
     {% if not category_filter or info.category == category_filter %}
+    {% if not type_filter or info.benchmark_type == type_filter %}
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 {% if not info.is_loaded %}opacity-75{% endif %}">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">{{ info.name }}</span>
+                <span class="fw-semibold">
+                    {% if info.benchmark_type == 'vision' %}<i class="bi bi-image me-1 text-info" title="Vision"></i>
+                    {% elif info.benchmark_type == 'audio' %}<i class="bi bi-soundwave me-1 text-warning" title="Audio"></i>
+                    {% elif info.benchmark_type == 'agentic' %}<i class="bi bi-robot me-1 text-success" title="Agentic"></i>
+                    {% endif %}{{ info.name }}
+                </span>
                 <span class="badge category-badge-{{ info.category }}">{{ info.category|title }}</span>
             </div>
             <div class="card-body">
@@ -142,6 +154,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
     {% endif %}
     {% endfor %}
 </div>

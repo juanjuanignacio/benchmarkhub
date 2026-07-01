@@ -21,6 +21,7 @@ def _benchmark_to_dict(b, include_subjects=False):
         'name': b.name,
         'description': b.description,
         'category': b.category,
+        'benchmark_type': b.benchmark_type,
         'num_questions': b.num_questions,
         'is_loaded': b.is_loaded,
         'loaded_at': b.loaded_at.isoformat() if b.loaded_at else None,
@@ -123,10 +124,13 @@ def api_benchmark_list(request):
     qs = Benchmark.objects.all()
     loaded_only = request.GET.get('loaded', '').lower() in ('1', 'true', 'yes')
     category = request.GET.get('category', '').strip()
+    benchmark_type = request.GET.get('type', '').strip()
     if loaded_only:
         qs = qs.filter(loaded_at__isnull=False)
     if category:
         qs = qs.filter(category=category)
+    if benchmark_type:
+        qs = qs.filter(benchmark_type=benchmark_type)
     qs = qs.order_by('name')
     items, meta = _paginate(qs, request, default_limit=200, max_limit=1000)
     return JsonResponse({

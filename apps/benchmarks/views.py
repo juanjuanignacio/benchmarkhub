@@ -38,9 +38,12 @@ class BenchmarkListView(ListView):
 
     def get_queryset(self):
         category = self.request.GET.get('category', '')
+        btype = self.request.GET.get('type', '')
         qs = Benchmark.objects.all()
         if category:
             qs = qs.filter(category=category)
+        if btype:
+            qs = qs.filter(benchmark_type=btype)
         return qs
 
     def get_context_data(self, **kwargs):
@@ -58,12 +61,15 @@ class BenchmarkListView(ListView):
                 'name': loader.name,
                 'description': loader.description,
                 'category': loader.category,
+                'benchmark_type': getattr(loader, 'benchmark_type', 'text'),
                 'benchmark': bench,
                 'is_loaded': bench is not None and bench.is_loaded,
             })
         ctx['registry_info'] = registry_info
         ctx['category_filter'] = self.request.GET.get('category', '')
+        ctx['type_filter'] = self.request.GET.get('type', '')
         ctx['categories'] = Benchmark.CATEGORY_CHOICES
+        ctx['benchmark_types'] = Benchmark.BENCHMARK_TYPE_CHOICES
         return ctx
 
 

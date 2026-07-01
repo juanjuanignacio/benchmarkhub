@@ -29,13 +29,24 @@ class OpenAIBackend(BaseProviderBackend):
         except ImportError:
             raise ImportError("openai package not installed. Run: pip install openai")
 
-    def complete(self, prompt: str, model: str, temperature: float = 0, max_tokens: int = 512) -> dict:
+    def complete(self, prompt: str, model: str, temperature: float = 0,
+                 max_tokens: int = 512, images=None) -> dict:
         start = time.time()
         try:
             client = self._get_client()
+            if images:
+                content = [{'type': 'text', 'text': prompt}]
+                for b64 in images:
+                    content.append({
+                        'type': 'image_url',
+                        'image_url': {'url': f'data:image/jpeg;base64,{b64}'},
+                    })
+                messages = [{'role': 'user', 'content': content}]
+            else:
+                messages = [{'role': 'user', 'content': prompt}]
             resp = client.chat.completions.create(
                 model=model,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )

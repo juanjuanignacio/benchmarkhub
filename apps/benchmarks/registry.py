@@ -171,6 +171,25 @@ class BaseBenchmarkLoader(ABC):
         is_correct = parsed == question_obj.correct_answer.strip().upper()
         return is_correct, parsed
 
+    def get_images_b64(self, question_obj):
+        """Return list of base64-encoded image strings for this question.
+        Default implementation reads from question_obj.image_paths field."""
+        paths = getattr(question_obj, 'image_paths', None) or []
+        if not paths:
+            return []
+        import base64
+        import os
+        from django.conf import settings
+        result = []
+        for rel_path in paths:
+            full = os.path.join(settings.MEDIA_ROOT, rel_path)
+            try:
+                with open(full, 'rb') as f:
+                    result.append(base64.b64encode(f.read()).decode('ascii'))
+            except OSError:
+                logger.warning(f"Could not read image: {full}")
+        return result
+
 
 class MMLULoader(BaseBenchmarkLoader):
     slug = 'mmlu'
@@ -2325,6 +2344,551 @@ class HLELoader(BaseBenchmarkLoader):
         return False, best_parsed
 
 
+# ---------------------------------------------------------------------------
+# Vision Benchmark Loaders
+# ---------------------------------------------------------------------------
+
+class ScienceQAVisionLoader(BaseBenchmarkLoader):
+    slug = 'scienceqa_vision'
+    name = 'ScienceQA (Vision)'
+    description = 'Science questions with optional images. MCQ from derek-thomas/ScienceQA.'
+    category = 'vision'
+    benchmark_type = 'vision'
+
+    LETTERS = 'ABCDEFGHIJ'
+
+    def load_questions(self):
+        from datasets import load_dataset
+        import os
+        from django.conf import settings
+
+        ds = load_dataset('derek-thomas/ScienceQA', split='test')
+        img_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_images', 'scienceqa')
+        os.makedirs(img_dir, exist_ok=True)
+        questions = []
+
+        for idx, item in enumerate(ds):
+            qid = f"sciqa_{idx}"
+            choices = item['choices']
+            correct_idx = item['answer']
+            correct_letter = self.LETTERS[correct_idx] if correct_idx < len(self.LETTERS) else 'A'
+
+            choice_a = choices[0] if len(choices) > 0 else None
+            choice_b = choices[1] if len(choices) > 1 else None
+            choice_c = choices[2] if len(choices) > 2 else None
+            choice_d = choices[3] if len(choices) > 3 else None
+
+            image_paths = []
+            if item['image'] is not None:
+                fname = f"{qid}.jpg"
+                full_path = os.path.join(img_dir, fname)
+                item['image'].convert('RGB').save(full_path, 'JPEG')
+                image_paths = [os.path.join('benchmark_images', 'scienceqa', fname)]
+
+            context = item['hint'] if item['hint'] else ''
+
+            questions.append({
+                'question_id': qid,
+                'question': item['question'],
+                'choice_a': choice_a,
+                'choice_b': choice_b,
+                'choice_c': choice_c,
+                'choice_d': choice_d,
+                'correct_answer': correct_letter,
+                'subject': item.get('subject', ''),
+                'difficulty': item.get('grade', ''),
+                'context': context,
+                'image_paths': image_paths,
+                'metadata': {'topic': item.get('topic', ''), 'has_image': bool(image_paths)},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        choices = ''
+        for letter, field in [('A', question_obj.choice_a), ('B', question_obj.choice_b),
+                               ('C', question_obj.choice_c), ('D', question_obj.choice_d)]:
+            if field:
+                choices += f'({letter}) {field}\n'
+        prompt = ''
+        if question_obj.context:
+            prompt += f"Context: {question_obj.context}\n\n"
+        if getattr(question_obj, 'image_paths', None):
+            prompt += "Look at the image and answer the following question.\n\n"
+        prompt += f"{question_obj.question}\n\n{choices}\nAnswer with a single letter."
+        return prompt
+
+
+class AI2DLoader(BaseBenchmarkLoader):
+    slug = 'ai2d'
+    name = 'AI2D (AI2 Diagrams)'
+    description = 'Diagram understanding benchmark. MCQ with 4 options from lmms-lab/ai2d.'
+    category = 'vision'
+    benchmark_type = 'vision'
+
+    LETTERS = 'ABCD'
+
+    def load_questions(self):
+        from datasets import load_dataset
+        import os
+        from django.conf import settings
+
+        ds = load_dataset('lmms-lab/ai2d', split='test')
+        img_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_images', 'ai2d')
+        os.makedirs(img_dir, exist_ok=True)
+        questions = []
+
+        for idx, item in enumerate(ds):
+            qid = f"ai2d_{idx}"
+            options = item['options']
+            correct_idx = int(item['answer'])
+            correct_letter = self.LETTERS[correct_idx]
+
+            fname = f"{qid}.jpg"
+            full_path = os.path.join(img_dir, fname)
+            item['image'].convert('RGB').save(full_path, 'JPEG')
+            rel_path = os.path.join('benchmark_images', 'ai2d', fname)
+
+            questions.append({
+                'question_id': qid,
+                'question': item['question'],
+                'choice_a': options[0] if len(options) > 0 else None,
+                'choice_b': options[1] if len(options) > 1 else None,
+                'choice_c': options[2] if len(options) > 2 else None,
+                'choice_d': options[3] if len(options) > 3 else None,
+                'correct_answer': correct_letter,
+                'image_paths': [rel_path],
+                'metadata': {'has_image': True},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        return (
+            f"Look at the diagram and answer the following question.\n\n"
+            f"{question_obj.question}\n\n"
+            f"(A) {question_obj.choice_a}\n"
+            f"(B) {question_obj.choice_b}\n"
+            f"(C) {question_obj.choice_c}\n"
+            f"(D) {question_obj.choice_d}\n\n"
+            f"Answer with a single letter: A, B, C, or D."
+        )
+
+
+class MMMULoader(BaseBenchmarkLoader):
+    slug = 'mmmu'
+    name = 'MMMU (Massive Multitask Multimodal Understanding)'
+    description = 'Multi-discipline multimodal benchmark with 30 subjects. Up to 7 images per question.'
+    category = 'vision'
+    benchmark_type = 'vision'
+
+    SUBJECTS = [
+        'Accounting', 'Agriculture', 'Architecture_and_Engineering',
+        'Art', 'Art_Theory', 'Basic_Medical_Science', 'Biology',
+        'Chemistry', 'Clinical_Medicine', 'Computer_Science', 'Design',
+        'Diagnostics_and_Laboratory_Medicine', 'Economics', 'Electronics',
+        'Energy_and_Power', 'Finance', 'Geography', 'History',
+        'Literature', 'Manage', 'Marketing', 'Materials',
+        'Math', 'Mechanical_Engineering', 'Music',
+        'Pharmacy', 'Physics', 'Psychology', 'Public_Health', 'Sociology',
+    ]
+
+    def load_questions(self):
+        from datasets import load_dataset
+        import ast
+        import os
+        from django.conf import settings
+
+        img_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_images', 'mmmu')
+        os.makedirs(img_dir, exist_ok=True)
+        questions = []
+
+        for subject in self.SUBJECTS:
+            try:
+                ds = load_dataset('MMMU/MMMU', name=subject, split='validation',
+                                  trust_remote_code=True)
+            except Exception as e:
+                logger.warning(f"MMMU: skipping subject {subject}: {e}")
+                continue
+
+            for item in ds:
+                qid = item['id']
+                question_type = item.get('question_type', 'multiple-choice')
+
+                try:
+                    options = ast.literal_eval(item['options']) if item.get('options') else []
+                except (ValueError, SyntaxError):
+                    options = []
+
+                choice_a = options[0] if len(options) > 0 else None
+                choice_b = options[1] if len(options) > 1 else None
+                choice_c = options[2] if len(options) > 2 else None
+                choice_d = options[3] if len(options) > 3 else None
+
+                image_paths = []
+                for img_idx in range(1, 8):
+                    img = item.get(f'image_{img_idx}')
+                    if img is not None:
+                        fname = f"{qid}_img{img_idx}.jpg"
+                        full_path = os.path.join(img_dir, fname)
+                        img.convert('RGB').save(full_path, 'JPEG')
+                        image_paths.append(
+                            os.path.join('benchmark_images', 'mmmu', fname)
+                        )
+
+                questions.append({
+                    'question_id': qid,
+                    'question': item['question'],
+                    'choice_a': choice_a,
+                    'choice_b': choice_b,
+                    'choice_c': choice_c,
+                    'choice_d': choice_d,
+                    'correct_answer': item.get('answer', ''),
+                    'subject': subject,
+                    'difficulty': item.get('topic_difficulty', ''),
+                    'image_paths': image_paths,
+                    'metadata': {
+                        'question_type': question_type,
+                        'subfield': item.get('subfield', ''),
+                        'img_type': item.get('img_type', ''),
+                        'has_image': bool(image_paths),
+                    },
+                })
+        return questions
+
+    def format_prompt(self, question_obj):
+        text = question_obj.question
+        for i in range(1, 8):
+            text = text.replace(f'<image {i}>', f'[Image {i}]')
+
+        prompt = f"{text}\n\n"
+        qtype = (question_obj.metadata or {}).get('question_type', 'multiple-choice')
+        if qtype == 'multiple-choice':
+            for letter, field in [('A', question_obj.choice_a), ('B', question_obj.choice_b),
+                                   ('C', question_obj.choice_c), ('D', question_obj.choice_d)]:
+                if field:
+                    prompt += f'({letter}) {field}\n'
+            prompt += '\nAnswer with a single letter.'
+        else:
+            prompt += 'Give a short, precise answer.'
+        return prompt
+
+    def evaluate_answer(self, question_obj, model_response):
+        qtype = (question_obj.metadata or {}).get('question_type', 'multiple-choice')
+        if qtype == 'multiple-choice':
+            response = model_response.strip().upper()
+            match = re.search(r'\b([A-J])\b', response)
+            if match:
+                parsed = match.group(1)
+                return parsed == question_obj.correct_answer.strip().upper(), parsed
+            return False, response[:50]
+        else:
+            expected = question_obj.correct_answer.strip().lower()
+            actual = model_response.strip().lower()
+            return expected == actual, actual[:100]
+
+
+class MMBenchLoader(BaseBenchmarkLoader):
+    slug = 'mmbench'
+    name = 'MMBench'
+    description = 'Multimodal benchmark with MCQ questions. From HuggingFaceM4/MMBench.'
+    category = 'vision'
+    benchmark_type = 'vision'
+
+    def load_questions(self):
+        from datasets import load_dataset
+        import os
+        import base64
+        from django.conf import settings
+
+        ds = load_dataset('HuggingFaceM4/MMBench', split='validation')
+        img_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_images', 'mmbench')
+        os.makedirs(img_dir, exist_ok=True)
+        questions = []
+
+        for item in ds:
+            qid = f"mmbench_{item['index']}"
+
+            image_paths = []
+            if item.get('image'):
+                fname = f"{qid}.jpg"
+                full_path = os.path.join(img_dir, fname)
+                try:
+                    img_bytes = base64.b64decode(item['image'])
+                    with open(full_path, 'wb') as f:
+                        f.write(img_bytes)
+                    image_paths = [os.path.join('benchmark_images', 'mmbench', fname)]
+                except Exception as e:
+                    logger.warning(f"MMBench: failed to save image for {qid}: {e}")
+
+            questions.append({
+                'question_id': qid,
+                'question': item['question'],
+                'choice_a': item.get('A'),
+                'choice_b': item.get('B'),
+                'choice_c': item.get('C'),
+                'choice_d': item.get('D'),
+                'correct_answer': item.get('answer', ''),
+                'subject': item.get('category', ''),
+                'context': item.get('hint', ''),
+                'image_paths': image_paths,
+                'metadata': {'has_image': bool(image_paths)},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        prompt = ''
+        if question_obj.context:
+            prompt += f"Hint: {question_obj.context}\n\n"
+        prompt += f"{question_obj.question}\n\n"
+        for letter, field in [('A', question_obj.choice_a), ('B', question_obj.choice_b),
+                               ('C', question_obj.choice_c), ('D', question_obj.choice_d)]:
+            if field:
+                prompt += f'({letter}) {field}\n'
+        prompt += '\nAnswer with a single letter.'
+        return prompt
+
+
+class ChartQALoader(BaseBenchmarkLoader):
+    slug = 'chartqa'
+    name = 'ChartQA'
+    description = 'Chart comprehension benchmark. Open-ended answers. From HuggingFaceM4/ChartQA.'
+    category = 'vision'
+    benchmark_type = 'vision'
+
+    def load_questions(self):
+        from datasets import load_dataset
+        import os
+        from django.conf import settings
+
+        ds = load_dataset('HuggingFaceM4/ChartQA', split='test')
+        img_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_images', 'chartqa')
+        os.makedirs(img_dir, exist_ok=True)
+        questions = []
+
+        for idx, item in enumerate(ds):
+            qid = f"chartqa_{idx}"
+            correct = item['label'][0] if item.get('label') else ''
+
+            fname = f"{qid}.jpg"
+            full_path = os.path.join(img_dir, fname)
+            item['image'].convert('RGB').save(full_path, 'JPEG')
+            rel_path = os.path.join('benchmark_images', 'chartqa', fname)
+
+            questions.append({
+                'question_id': qid,
+                'question': item['query'],
+                'correct_answer': correct,
+                'image_paths': [rel_path],
+                'metadata': {'has_image': True},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        return (
+            f"Look at the chart and answer the following question.\n\n"
+            f"{question_obj.question}\n\n"
+            f"Give a short, precise answer."
+        )
+
+    def evaluate_answer(self, question_obj, model_response):
+        expected = question_obj.correct_answer.strip().lower()
+        actual = model_response.strip().lower()
+        is_correct = (expected == actual) or (len(expected) > 2 and expected in actual)
+        return is_correct, actual[:100]
+
+
+# ---------------------------------------------------------------------------
+# Agentic Benchmark Loaders
+# ---------------------------------------------------------------------------
+
+class GAIALoader(BaseBenchmarkLoader):
+    slug = 'gaia'
+    name = 'GAIA (text-only)'
+    description = 'General AI Assistants benchmark. Text-only questions from validation set (gated dataset).'
+    category = 'agentic'
+    benchmark_type = 'agentic'
+
+    def load_questions(self):
+        from datasets import load_dataset
+
+        ds = load_dataset('gaia-benchmark/GAIA', '2023_all', split='validation',
+                          trust_remote_code=True)
+        questions = []
+        for item in ds:
+            if item['task_id'] == '0-0-0-0-0':
+                continue
+            if item['file_name']:
+                continue
+
+            questions.append({
+                'question_id': item['task_id'],
+                'question': item['Question'],
+                'correct_answer': item['Final answer'],
+                'difficulty': item['Level'],
+                'subject': 'multi-step reasoning',
+                'metadata': {'level': item['Level']},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        return (
+            f"{question_obj.question}\n\n"
+            f"Give a direct, concise answer. Do not explain your reasoning."
+        )
+
+    def evaluate_answer(self, question_obj, model_response):
+        expected = re.sub(r'[.,;:!?]+$', '', question_obj.correct_answer.strip().lower()).strip()
+        actual = re.sub(r'[.,;:!?]+$', '', model_response.strip().lower()).strip()
+        return expected == actual, actual[:200]
+
+
+class BFCLSimpleLoader(BaseBenchmarkLoader):
+    slug = 'bfcl_simple'
+    name = 'BFCL Simple (Function Calling)'
+    description = 'Berkeley Function Calling Leaderboard - simple single-function Python calls.'
+    category = 'agentic'
+    benchmark_type = 'agentic'
+
+    def load_questions(self):
+        import json
+        from huggingface_hub import hf_hub_download
+
+        repo = 'gorilla-llm/Berkeley-Function-Calling-Leaderboard'
+
+        q_path = hf_hub_download(repo_id=repo, filename='BFCL_v3_simple.json',
+                                  repo_type='dataset')
+        with open(q_path) as f:
+            q_data = [json.loads(line) for line in f if line.strip()]
+
+        gt_path = hf_hub_download(repo_id=repo,
+                                   filename='possible_answer/BFCL_v3_simple.json',
+                                   repo_type='dataset')
+        gt_map = {}
+        with open(gt_path) as f:
+            for line in f:
+                if line.strip():
+                    entry = json.loads(line)
+                    gt_map[entry['id']] = entry.get('ground_truth', [])
+
+        questions = []
+        for item in q_data:
+            qid = item['id']
+            user_prompt = item['question'][0][0]['content']
+            func_schemas = json.dumps(item['function'], indent=2)
+            gt = gt_map.get(qid, [])
+
+            questions.append({
+                'question_id': qid,
+                'question': user_prompt,
+                'context': func_schemas,
+                'correct_answer': json.dumps(gt),
+                'subject': 'function-calling',
+                'metadata': {},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        return (
+            f"You have access to the following functions:\n\n"
+            f"{question_obj.context}\n\n"
+            f"Based on the user request below, call the appropriate function. "
+            f"Respond with a Python function call (e.g., func_name(arg1=val1, arg2=val2)).\n\n"
+            f"User request: {question_obj.question}"
+        )
+
+    def evaluate_answer(self, question_obj, model_response):
+        import json
+
+        try:
+            gt_list = json.loads(question_obj.correct_answer)
+        except json.JSONDecodeError:
+            return False, model_response[:100]
+
+        if not gt_list:
+            return False, model_response[:100]
+
+        gt = gt_list[0]
+        expected_func = list(gt.keys())[0]
+        expected_params = gt[expected_func]
+
+        match = re.search(r'(\w+(?:\.\w+)*)\s*\(', model_response)
+        if not match:
+            return False, model_response[:100]
+
+        called_func = match.group(1)
+        if called_func != expected_func:
+            return False, f"called {called_func}, expected {expected_func}"
+
+        required_params = [k for k, v in expected_params.items() if '' not in v]
+        response_lower = model_response.lower()
+        params_present = all(p.lower() in response_lower for p in required_params)
+
+        return params_present, called_func
+
+
+# ---------------------------------------------------------------------------
+# Audio Benchmark Loaders
+# ---------------------------------------------------------------------------
+
+class LibriSpeechLoader(BaseBenchmarkLoader):
+    slug = 'librispeech'
+    name = 'LibriSpeech (ASR - clean test)'
+    description = 'Automatic speech recognition on LibriSpeech test-clean. Metric: WER.'
+    category = 'audio'
+    benchmark_type = 'audio'
+
+    def load_questions(self):
+        from datasets import load_dataset
+        import os
+        from django.conf import settings
+
+        ds = load_dataset('openslr/librispeech_asr', 'clean', split='test')
+        audio_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_audio', 'librispeech')
+        os.makedirs(audio_dir, exist_ok=True)
+        questions = []
+
+        for item in ds:
+            qid = item['id']
+            fname = f"{qid}.wav"
+            full_path = os.path.join(audio_dir, fname)
+
+            try:
+                import soundfile as sf
+                sf.write(full_path, item['audio']['array'],
+                         item['audio']['sampling_rate'])
+            except Exception as e:
+                logger.warning(f"LibriSpeech: failed to save audio {qid}: {e}")
+                continue
+
+            rel_path = os.path.join('benchmark_audio', 'librispeech', fname)
+            questions.append({
+                'question_id': qid,
+                'question': 'Transcribe the following audio clip.',
+                'correct_answer': item['text'].lower(),
+                'audio_path': rel_path,
+                'subject': str(item.get('speaker_id', '')),
+                'metadata': {'has_audio': True},
+            })
+        return questions
+
+    def format_prompt(self, question_obj):
+        return "Transcribe the following audio clip accurately."
+
+    def evaluate_answer(self, question_obj, model_response):
+        try:
+            from jiwer import wer
+            ref = question_obj.correct_answer.strip().lower()
+            hyp = model_response.strip().lower()
+            if not hyp:
+                return False, 'WER=1.0000'
+            score = wer(ref, hyp)
+            return score < 0.1, f'WER={score:.4f}'
+        except ImportError:
+            # jiwer not installed: fall back to exact match
+            expected = question_obj.correct_answer.strip().lower()
+            actual = model_response.strip().lower()
+            return expected == actual, actual[:100]
+
+
 BENCHMARK_REGISTRY = {
     # ── General / Reasoning ──────────────────────────────────────────────────
     'mmlu': MMLULoader,
@@ -2380,6 +2944,17 @@ BENCHMARK_REGISTRY = {
     # 'social_iqa': SocialIQALoader,  # old loading script
     # 'logiqa': LogiQALoader,     # old loading script
     # 'strategyqa': StrategyQALoader, # old loading script
+    # ── Vision & Multimodal ──────────────────────────────────────────────────
+    'scienceqa_vision': ScienceQAVisionLoader,
+    'ai2d': AI2DLoader,
+    'mmmu': MMMULoader,
+    'mmbench': MMBenchLoader,
+    'chartqa': ChartQALoader,
+    # ── Agentic / Tool Use ───────────────────────────────────────────────────
+    'gaia': GAIALoader,
+    'bfcl_simple': BFCLSimpleLoader,
+    # ── Audio / Speech ───────────────────────────────────────────────────────
+    'librispeech': LibriSpeechLoader,
 }
 
 

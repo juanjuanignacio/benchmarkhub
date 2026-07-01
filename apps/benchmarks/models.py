@@ -12,12 +12,23 @@ class Benchmark(models.Model):
         ('common_sense', 'Common Sense'),
         ('clinical', 'Clinical Medicine'),
         ('biomedical', 'Biomedical Science'),
+        ('vision', 'Vision & Multimodal'),
+        ('audio', 'Audio & Speech'),
+        ('agentic', 'Agentic / Tool Use'),
+    ]
+
+    BENCHMARK_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('vision', 'Vision (Image)'),
+        ('audio', 'Audio / Speech'),
+        ('agentic', 'Agentic / Tool Use'),
     ]
 
     slug = models.SlugField(unique=True, max_length=100)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='knowledge')
+    benchmark_type = models.CharField(max_length=20, choices=BENCHMARK_TYPE_CHOICES, default='text')
     num_questions = models.IntegerField(default=0)
     loaded_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -53,6 +64,9 @@ class BenchmarkQuestion(models.Model):
     difficulty = models.CharField(max_length=50, blank=True)
     # RAG support: stores the retrieved passage/document used as context
     context = models.TextField(blank=True, default='')
+    # Multimodal support
+    image_paths = models.JSONField(default=list, blank=True)
+    audio_path = models.CharField(max_length=500, blank=True, default='')
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:

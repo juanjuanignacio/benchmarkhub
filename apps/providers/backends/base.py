@@ -8,9 +8,13 @@ class BaseProviderBackend:
     def __init__(self, provider_model):
         self.provider = provider_model
 
-    def complete(self, prompt: str, model: str, temperature: float = 0, max_tokens: int = 512) -> dict:
+    def complete(self, prompt: str, model: str, temperature: float = 0,
+                 max_tokens: int = 512, images=None) -> dict:
         """
         Generate a completion for the given prompt.
+
+        Args:
+            images: optional list of base64-encoded image strings for vision models.
 
         Returns:
             dict with keys:

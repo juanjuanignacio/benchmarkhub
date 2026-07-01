@@ -15,8 +15,36 @@
         <h1 class="h3 mb-1">{{ benchmark.name }}</h1>
         <p class="text-muted mb-0">{{ benchmark.description }}</p>
     </div>
-    <span class="badge category-badge-{{ benchmark.category }} fs-6">{{ benchmark.get_category_display }}</span>
+    <div class="d-flex gap-2">
+        {% if benchmark.benchmark_type == 'vision' %}
+        <span class="badge bg-info fs-6"><i class="bi bi-image me-1"></i>Vision</span>
+        {% elif benchmark.benchmark_type == 'audio' %}
+        <span class="badge bg-warning fs-6"><i class="bi bi-soundwave me-1"></i>Audio</span>
+        {% elif benchmark.benchmark_type == 'agentic' %}
+        <span class="badge bg-success fs-6"><i class="bi bi-robot me-1"></i>Agentic</span>
+        {% endif %}
+        <span class="badge category-badge-{{ benchmark.category }} fs-6">{{ benchmark.get_category_display }}</span>
+    </div>
 </div>
+
+{% if benchmark.benchmark_type == 'vision' %}
+<div class="alert alert-info small py-2 mb-4">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>Vision benchmark.</strong> Requires a vision-capable model (e.g., GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro).
+    Images are sent to the model alongside each question.
+</div>
+{% elif benchmark.benchmark_type == 'audio' %}
+<div class="alert alert-warning small py-2 mb-4">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>Audio benchmark.</strong> Requires an audio-capable model or ASR pipeline.
+    Evaluated using Word Error Rate (WER).
+</div>
+{% elif benchmark.benchmark_type == 'agentic' %}
+<div class="alert alert-success small py-2 mb-4">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>Agentic benchmark.</strong> Tests model reasoning and tool-use capabilities.
+</div>
+{% endif %}
 
 <!-- Stats cards -->
 <div class="row g-3 mb-4">

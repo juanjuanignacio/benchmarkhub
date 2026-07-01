@@ -26,7 +26,8 @@ class GeminiBackend(BaseProviderBackend):
                 "google-generativeai package not installed. Run: pip install google-generativeai"
             )
 
-    def complete(self, prompt: str, model: str, temperature: float = 0, max_tokens: int = 512) -> dict:
+    def complete(self, prompt: str, model: str, temperature: float = 0,
+                 max_tokens: int = 512, images=None) -> dict:
         start = time.time()
         try:
             genai = self._configure()
@@ -38,7 +39,18 @@ class GeminiBackend(BaseProviderBackend):
                 model_name=model,
                 generation_config=generation_config,
             )
-            response = model_obj.generate_content(prompt)
+            if images:
+                import base64
+                import io
+                from PIL import Image
+                parts = []
+                for b64 in images:
+                    img = Image.open(io.BytesIO(base64.b64decode(b64)))
+                    parts.append(img)
+                parts.append(prompt)
+                response = model_obj.generate_content(parts)
+            else:
+                response = model_obj.generate_content(prompt)
             text = response.text if hasattr(response, 'text') else ''
             return {'text': text, 'response_time': time.time() - start, 'error': None}
         except Exception as e:

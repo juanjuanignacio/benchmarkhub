@@ -80,8 +80,8 @@
                             <select name="benchmark" id="benchmarkSelect" class="form-select border-secondary" required>
                                 <option value="">-- Select Benchmark --</option>
                                 {% for b in benchmarks %}
-                                <option value="{{ b.id }}" data-questions="{{ b.num_questions }}">
-                                    {{ b.name }} ({{ b.num_questions }} questions)
+                                <option value="{{ b.id }}" data-questions="{{ b.num_questions }}" data-type="{{ b.benchmark_type }}">
+                                    {% if b.benchmark_type == 'vision' %}[IMG] {% elif b.benchmark_type == 'audio' %}[AUD] {% elif b.benchmark_type == 'agentic' %}[AGT] {% endif %}{{ b.name }} ({{ b.num_questions }} questions)
                                 </option>
                                 {% endfor %}
                             </select>
@@ -91,6 +91,7 @@
                                 <a href="{% url 'benchmarks:list' %}">Load a benchmark first</a>
                             </small>
                             {% endif %}
+                            <div id="benchmarkTypeAlert" class="mt-2 small" style="display:none;"></div>
                         </div>
 
                         <!-- Provider -->
@@ -354,8 +355,24 @@ function loadModelsForProvider() {
 document.getElementById('benchmarkSelect')?.addEventListener('change', function() {
     const opt = this.options[this.selectedIndex];
     const numQ = opt.dataset.questions;
+    const btype = opt.dataset.type;
     const hint = document.getElementById('maxQuestionsHint');
     if (numQ) hint.textContent = `(max: ${numQ})`;
+
+    // Show type-specific alert
+    const alertDiv = document.getElementById('benchmarkTypeAlert');
+    if (btype === 'vision') {
+        alertDiv.innerHTML = '<span class="text-info"><i class="bi bi-image me-1"></i>Vision benchmark — requires a vision-capable model (GPT-4o, Claude 3.5, Gemini 1.5 Pro).</span>';
+        alertDiv.style.display = 'block';
+    } else if (btype === 'audio') {
+        alertDiv.innerHTML = '<span class="text-warning"><i class="bi bi-soundwave me-1"></i>Audio benchmark — requires an audio-capable model or ASR pipeline.</span>';
+        alertDiv.style.display = 'block';
+    } else if (btype === 'agentic') {
+        alertDiv.innerHTML = '<span class="text-success"><i class="bi bi-robot me-1"></i>Agentic benchmark — tests reasoning and tool-use capabilities.</span>';
+        alertDiv.style.display = 'block';
+    } else {
+        alertDiv.style.display = 'none';
+    }
     updatePreview();
 });
 
