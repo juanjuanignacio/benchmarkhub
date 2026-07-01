@@ -47,7 +47,20 @@
             </div>
             <div class="card-body">
                 <p class="text-muted small mb-2">{{ info.description|truncatechars:120 }}</p>
+                <!-- Loading progress indicator (hidden by default) -->
+                <div class="load-progress d-none" id="progress-{{ info.slug }}" data-slug="{{ info.slug }}">
+                    <div class="small text-info mb-1">
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span class="progress-label">Downloading...</span>
+                    </div>
+                    <div class="progress mb-1" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-muted small progress-detail"></div>
+                </div>
                 {% if info.benchmark and info.is_loaded %}
+                <div class="loaded-info" id="loaded-{{ info.slug }}">
                 <div class="d-flex gap-3 mb-2 flex-wrap">
                     <span class="text-info small">
                         <i class="bi bi-question-circle me-1"></i>{{ info.benchmark.num_questions }} questions
@@ -63,10 +76,11 @@
                     </span>
                     {% endif %}
                 </div>
+                </div>
                 {% else %}
                 {% if info.benchmark and info.benchmark.metadata.error %}
                   {% if info.benchmark.metadata.error_type == 'gated' %}
-                  <div class="alert alert-warning small py-2 px-3 mb-0">
+                  <div class="alert alert-warning small py-2 px-3 mb-0" id="error-{{ info.slug }}">
                     <i class="bi bi-lock me-1"></i><strong>Gated dataset.</strong><br>
                     This dataset requires approval on HuggingFace:<br>
                     <ol class="mb-1 ps-3">
@@ -75,12 +89,19 @@
                       <li>Add <code>HF_TOKEN=your_token</code> to the <code>.env</code> file and restart the server.</li>
                     </ol>
                   </div>
+                  {% elif info.benchmark.metadata.error_type == 'network' %}
+                  <div class="alert alert-danger small py-2 px-3 mb-0" id="error-{{ info.slug }}">
+                    <i class="bi bi-wifi-off me-1"></i>
+                    <strong>Network error:</strong> Could not connect to HuggingFace CDN. Check your internet connection and try again.
+                  </div>
                   {% else %}
-                  <div class="alert alert-danger small py-2 px-3 mb-0">
+                  <div class="alert alert-danger small py-2 px-3 mb-0" id="error-{{ info.slug }}">
                     <i class="bi bi-exclamation-triangle me-1"></i>
                     <strong>Load error:</strong> {{ info.benchmark.metadata.error|truncatechars:150 }}
                   </div>
                   {% endif %}
+                {% elif info.benchmark and info.benchmark.metadata.load_status == 'downloading' or info.benchmark and info.benchmark.metadata.load_status == 'saving' %}
+                <!-- Already loading when page was rendered — JS will pick it up -->
                 {% else %}
                 <p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Not loaded yet.</p>
                 {% endif %}
@@ -165,4 +186,93 @@
     <p class="text-muted mt-3">No benchmarks available.</p>
 </div>
 {% endif %}
+
+<script>
+(function() {
+    // Track which slugs are being actively loaded (set by form submit + initial page state)
+    const loading = new Set();
+
+    // On page load, check all benchmarks that might be loading already
+    document.querySelectorAll('.load-progress').forEach(el => {
+        loading.add(el.dataset.slug);
+    });
+
+    // Intercept load form submissions to start polling immediately
+    document.querySelectorAll('form[action*="/load/"]').forEach(form => {
+        form.addEventListener('submit', function() {
+            const action = form.getAttribute('action');
+            const match = action.match(/\/benchmarks\/([^/]+)\/load\//);
+            if (match) {
+                const slug = match[1];
+                loading.add(slug);
+                showProgress(slug, 'downloading', 0, 0);
+            }
+        });
+    });
+
+    function showProgress(slug, status, progress, total) {
+        const el = document.getElementById('progress-' + slug);
+        if (!el) return;
+        el.classList.remove('d-none');
+        const bar = el.querySelector('.progress-bar');
+        const label = el.querySelector('.progress-label');
+        const detail = el.querySelector('.progress-detail');
+
+        if (status === 'downloading') {
+            label.textContent = 'Downloading from HuggingFace...';
+            bar.style.width = '100%';
+            bar.classList.add('progress-bar-animated');
+            detail.textContent = '';
+        } else if (status === 'saving') {
+            const pct = total > 0 ? Math.round(progress / total * 100) : 0;
+            label.textContent = 'Saving questions to database...';
+            bar.style.width = pct + '%';
+            bar.classList.remove('progress-bar-animated');
+            detail.textContent = progress + ' / ' + total + ' questions (' + pct + '%)';
+        } else if (status === 'done') {
+            label.innerHTML = '<i class="bi bi-check-circle me-1"></i>Loaded successfully!';
+            bar.style.width = '100%';
+            bar.classList.remove('progress-bar-animated', 'bg-info');
+            bar.classList.add('bg-success');
+            detail.textContent = total + ' questions loaded';
+        }
+    }
+
+    function hideProgress(slug) {
+        const el = document.getElementById('progress-' + slug);
+        if (el) el.classList.add('d-none');
+    }
+
+    function pollLoading() {
+        if (loading.size === 0) return;
+        loading.forEach(slug => {
+            fetch('/benchmarks/' + slug + '/load-status/')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'downloading' || data.status === 'saving') {
+                        showProgress(slug, data.status, data.progress, data.total);
+                    } else if (data.status === 'done') {
+                        showProgress(slug, 'done', data.num_questions, data.num_questions);
+                        loading.delete(slug);
+                        // Reload after a short delay to show updated card
+                        setTimeout(() => location.reload(), 2000);
+                    } else if (data.error) {
+                        hideProgress(slug);
+                        loading.delete(slug);
+                        location.reload();
+                    } else if (data.status === 'idle' || data.status === 'not_found') {
+                        // Not loading (yet or anymore)
+                        loading.delete(slug);
+                    }
+                })
+                .catch(() => {}); // network error, try again next tick
+        });
+    }
+
+    // Start polling every 2 seconds
+    setInterval(pollLoading, 2000);
+    // Also poll immediately for benchmarks that were already loading
+    if (loading.size > 0) pollLoading();
+})();
+</script>
 {% endblock %}

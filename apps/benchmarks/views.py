@@ -6,7 +6,6 @@ import threading
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db import transaction
 from django.db.models import Avg, Max, Count, F, Q, ExpressionWrapper, FloatField
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -148,36 +147,58 @@ def _do_load_benchmark(slug, num_samples, benchmark_id):
             benchmark.save()
             return
 
+        # Mark as loading with progress tracking
+        benchmark.metadata = {'load_status': 'downloading', 'load_progress': 0, 'load_total': 0}
+        benchmark.save()
+
         questions_data = loader.load_questions()
         if num_samples and num_samples > 0:
             questions_data = questions_data[:num_samples]
 
-        with transaction.atomic():
-            BenchmarkQuestion.objects.filter(benchmark=benchmark).delete()
-            batch = []
-            for qdata in questions_data:
-                batch.append(BenchmarkQuestion(
-                    benchmark=benchmark,
-                    question_id=str(qdata['question_id']),
-                    question=qdata['question'],
-                    choice_a=qdata.get('choice_a'),
-                    choice_b=qdata.get('choice_b'),
-                    choice_c=qdata.get('choice_c'),
-                    choice_d=qdata.get('choice_d'),
-                    correct_answer=str(qdata.get('correct_answer', '')),
-                    subject=str(qdata.get('subject', '')),
-                    difficulty=str(qdata.get('difficulty', '')),
-                    metadata=qdata.get('metadata', {}),
-                ))
-                if len(batch) >= 500:
-                    BenchmarkQuestion.objects.bulk_create(batch, ignore_conflicts=True)
-                    batch = []
-            if batch:
+        total = len(questions_data)
+        benchmark.metadata = {'load_status': 'saving', 'load_progress': 0, 'load_total': total}
+        benchmark.save()
+
+        # Delete old questions in its own short transaction
+        BenchmarkQuestion.objects.filter(benchmark=benchmark).delete()
+
+        # Insert in small batches WITHOUT wrapping everything in one giant
+        # transaction.  Each bulk_create grabs the SQLite write-lock briefly
+        # and releases it, so the web server is never blocked for long.
+        BATCH = 200
+        saved = 0
+        batch = []
+        for qdata in questions_data:
+            batch.append(BenchmarkQuestion(
+                benchmark=benchmark,
+                question_id=str(qdata['question_id']),
+                question=qdata['question'],
+                choice_a=qdata.get('choice_a'),
+                choice_b=qdata.get('choice_b'),
+                choice_c=qdata.get('choice_c'),
+                choice_d=qdata.get('choice_d'),
+                correct_answer=str(qdata.get('correct_answer', '')),
+                subject=str(qdata.get('subject', '')),
+                difficulty=str(qdata.get('difficulty', '')),
+                context=str(qdata.get('context', '')),
+                image_paths=qdata.get('image_paths', []),
+                audio_path=str(qdata.get('audio_path', '')),
+                metadata=qdata.get('metadata', {}),
+            ))
+            if len(batch) >= BATCH:
                 BenchmarkQuestion.objects.bulk_create(batch, ignore_conflicts=True)
+                saved += len(batch)
+                batch = []
+                # Update progress so the UI can poll it
+                benchmark.metadata = {'load_status': 'saving', 'load_progress': saved, 'load_total': total}
+                benchmark.save(update_fields=['metadata'])
+        if batch:
+            BenchmarkQuestion.objects.bulk_create(batch, ignore_conflicts=True)
+            saved += len(batch)
 
         benchmark.num_questions = BenchmarkQuestion.objects.filter(benchmark=benchmark).count()
         benchmark.loaded_at = timezone.now()
-        meta = benchmark.metadata or {}
+        meta = {'load_status': 'done'}
         if getattr(loader, 'excludes_images', False):
             meta['excludes_images'] = True
         benchmark.metadata = meta
@@ -189,7 +210,16 @@ def _do_load_benchmark(slug, num_samples, benchmark_id):
         try:
             benchmark = Benchmark.objects.get(id=benchmark_id)
             error_str = str(e)
-            error_type = 'gated' if 'gated dataset' in error_str.lower() else 'general'
+            if 'gated dataset' in error_str.lower():
+                error_type = 'gated'
+            elif 'NameResolutionError' in error_str or 'ConnectionError' in error_str or 'Max retries' in error_str:
+                error_type = 'network'
+                error_str = (
+                    'Network error: could not connect to HuggingFace CDN. '
+                    'Check your internet connection and DNS settings, then try again.'
+                )
+            else:
+                error_type = 'general'
             benchmark.metadata = {'error': error_str, 'error_type': error_type}
             benchmark.save()
         except Exception:
@@ -206,18 +236,21 @@ def load_benchmark_view(request, slug):
         messages.error(request, f'Unknown benchmark: {slug}')
         return redirect('benchmarks:list')
 
+    benchmark_type = getattr(loader, 'benchmark_type', 'text')
     benchmark, created = Benchmark.objects.get_or_create(
         slug=slug,
         defaults={
             'name': loader.name,
             'description': loader.description,
             'category': loader.category,
+            'benchmark_type': benchmark_type,
         }
     )
     if not created:
         benchmark.name = loader.name
         benchmark.description = loader.description
         benchmark.category = loader.category
+        benchmark.benchmark_type = benchmark_type
         benchmark.save()
 
     t = threading.Thread(
@@ -233,6 +266,25 @@ def load_benchmark_view(request, slug):
         f'Loading {loader.name}{sample_msg} in background. Refresh the page in a few moments.'
     )
     return redirect('benchmarks:list')
+
+
+def benchmark_load_status(request, slug):
+    """AJAX endpoint: returns loading progress for a benchmark."""
+    try:
+        benchmark = Benchmark.objects.get(slug=slug)
+    except Benchmark.DoesNotExist:
+        return JsonResponse({'status': 'not_found'}, status=404)
+    meta = benchmark.metadata or {}
+    return JsonResponse({
+        'slug': slug,
+        'status': meta.get('load_status', 'idle'),
+        'progress': meta.get('load_progress', 0),
+        'total': meta.get('load_total', 0),
+        'error': meta.get('error', ''),
+        'error_type': meta.get('error_type', ''),
+        'num_questions': benchmark.num_questions,
+        'is_loaded': benchmark.is_loaded,
+    })
 
 
 def delete_benchmark_view(request, slug):

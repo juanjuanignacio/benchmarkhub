@@ -32,6 +32,7 @@ urlpatterns = [
     path('<slug:slug>/', views.BenchmarkDetailView.as_view(), name='detail'),
     path('<slug:slug>/questions/', views.BenchmarkQuestionsView.as_view(), name='questions'),
     path('<slug:slug>/load/', views.load_benchmark_view, name='load'),
+    path('<slug:slug>/load-status/', views.benchmark_load_status, name='load_status'),
     path('<slug:slug>/delete/', views.delete_benchmark_view, name='delete'),
     path('<slug:slug>/export-csv/', views.export_questions_csv, name='export_csv'),
     path('<slug:slug>/export-excel/', views.export_questions_excel, name='export_excel'),

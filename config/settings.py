@@ -69,7 +69,7 @@ DATABASES = {
             # Background runner threads can hold the write lock while saving
             # results; raising the timeout prevents "database is locked" errors
             # when many runs execute in parallel.
-            'timeout': 30,
+            'timeout': 60,
         },
     }
 }
