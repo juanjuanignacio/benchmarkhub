@@ -48,7 +48,8 @@
             <div class="card-body">
                 <p class="text-muted small mb-2">{{ info.description|truncatechars:120 }}</p>
                 <!-- Loading progress indicator (hidden by default) -->
-                <div class="load-progress d-none" id="progress-{{ info.slug }}" data-slug="{{ info.slug }}">
+                <div class="load-progress d-none" id="progress-{{ info.slug }}" data-slug="{{ info.slug }}"
+                     {% if info.benchmark and info.benchmark.metadata.load_status == 'downloading' or info.benchmark and info.benchmark.metadata.load_status == 'saving' %}data-active="1"{% endif %}>
                     <div class="small text-info mb-1">
                         <span class="spinner-border spinner-border-sm me-1" role="status"></span>
                         <span class="progress-label">Downloading...</span>
@@ -192,9 +193,10 @@
     // Track which slugs are being actively loaded (set by form submit + initial page state)
     const loading = new Set();
 
-    // On page load, check all benchmarks that might be loading already
-    document.querySelectorAll('.load-progress').forEach(el => {
+    // On page load, only poll benchmarks that were already loading when the page rendered
+    document.querySelectorAll('.load-progress[data-active="1"]').forEach(el => {
         loading.add(el.dataset.slug);
+        el.classList.remove('d-none');
     });
 
     // Intercept load form submissions to start polling immediately

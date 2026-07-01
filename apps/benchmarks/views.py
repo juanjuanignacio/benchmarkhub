@@ -273,7 +273,8 @@ def benchmark_load_status(request, slug):
     try:
         benchmark = Benchmark.objects.get(slug=slug)
     except Benchmark.DoesNotExist:
-        return JsonResponse({'status': 'not_found'}, status=404)
+        return JsonResponse({'slug': slug, 'status': 'idle', 'progress': 0, 'total': 0,
+                             'error': '', 'error_type': '', 'num_questions': 0, 'is_loaded': False})
     meta = benchmark.metadata or {}
     return JsonResponse({
         'slug': slug,
