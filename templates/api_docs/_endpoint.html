@@ -1,0 +1,20 @@
+<div class="card border-secondary mb-3">
+  <div class="card-header d-flex align-items-center gap-2">
+    <span class="badge {% if method == 'GET' %}bg-success{% elif method == 'POST' %}bg-primary{% elif method == 'DELETE' %}bg-danger{% else %}bg-secondary{% endif %}">{{ method }}</span>
+    <code>{{ url }}</code>
+    <span class="text-muted ms-auto small">{{ title }}</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-2">{{ desc|safe }}</p>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <p class="fw-semibold small mb-1">curl example:</p>
+        <pre class="bg-body-secondary p-3 rounded small mb-0">curl {% if curl_method %}-X {{ curl_method }} {% endif %}{{ request.scheme }}://{{ request.get_host }}/api/v1/{{ curl_extra }}</pre>
+      </div>
+      <div class="col-md-6">
+        <p class="fw-semibold small mb-1">Example response:</p>
+        <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{{ response }}</pre>
+      </div>
+    </div>
+  </div>
+</div>

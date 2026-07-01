@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Questions - {{ benchmark.name }}{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:list' %}">Benchmarks</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:detail' benchmark.slug %}">{{ benchmark.name }}</a></li>
+        <li class="breadcrumb-item active">Questions</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">{{ benchmark.name }} Questions</h2>
+    <a href="{% url 'benchmarks:export_csv' benchmark.slug %}" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+</div>
+
+<!-- Search and filter -->
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" class="form-control border-secondary"
+                placeholder="Search questions..." value="{{ search }}">
+        </div>
+    </div>
+    {% if subjects %}
+    <div class="col-md-3">
+        <select name="subject" class="form-select border-secondary">
+            <option value="">All Subjects</option>
+            {% for s in subjects %}
+            <option value="{{ s }}" {% if subject_filter == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+    </div>
+    {% if search or subject_filter %}
+    <div class="col-md-1">
+        <a href="{% url 'benchmarks:questions' benchmark.slug %}" class="btn btn-outline-secondary w-100">Clear</a>
+    </div>
+    {% endif %}
+</form>
+
+<p class="text-muted">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} questions</p>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead class="table-secondary">
+            <tr>
+                <th style="width: 80px;">ID</th>
+                <th>Question</th>
+                <th style="width: 120px;">Subject</th>
+                <th style="width: 100px;">Difficulty</th>
+                <th style="width: 80px;">Answer</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in questions %}
+            <tr data-bs-toggle="collapse" data-bs-target="#q{{ q.id }}" style="cursor:pointer;">
+                <td><code class="small">{{ q.question_id }}</code></td>
+                <td>
+                    <span class="d-inline-block text-truncate" style="max-width: 450px;" title="{{ q.question }}">
+                        {{ q.question|truncatechars:100 }}
+                    </span>
+                </td>
+                <td><span class="badge bg-secondary small">{{ q.subject|truncatechars:20 }}</span></td>
+                <td>{% if q.difficulty %}<span class="badge bg-secondary small">{{ q.difficulty }}</span>{% endif %}</td>
+                <td><strong class="text-success">{{ q.correct_answer }}</strong></td>
+            </tr>
+            <tr class="collapse" id="q{{ q.id }}">
+                <td colspan="5">
+                    <div class="bg-body-secondary p-3 rounded border border-secondary">
+                        {% if q.context %}
+                        <div class="mb-3 p-2 border rounded border-info-subtle bg-info-subtle">
+                          <div class="text-info fw-semibold small mb-1"><i class="bi bi-file-earmark-text me-1"></i>Context Passage</div>
+                          <div class="small" style="white-space:pre-wrap;">{{ q.context }}</div>
+                        </div>
+                        {% endif %}
+                        <p class="mb-2"><strong>Full Question:</strong> {{ q.question }}</p>
+                        {% if q.choice_a %}
+                        <div class="row g-2">
+                            {% if q.choice_a %}<div class="col-md-6"><span class="text-primary fw-bold">A)</span> {{ q.choice_a }}</div>{% endif %}
+                            {% if q.choice_b %}<div class="col-md-6"><span class="text-primary fw-bold">B)</span> {{ q.choice_b }}</div>{% endif %}
+                            {% if q.choice_c %}<div class="col-md-6"><span class="text-primary fw-bold">C)</span> {{ q.choice_c }}</div>{% endif %}
+                            {% if q.choice_d %}<div class="col-md-6"><span class="text-primary fw-bold">D)</span> {{ q.choice_d }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="mt-2">
+                            <strong class="text-success">Correct Answer: {{ q.correct_answer }}</strong>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">No questions found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav>
+    <ul class="pagination pagination-sm justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}&subject={{ subject_filter }}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&search={{ search }}&subject={{ subject_filter }}">{{ num }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}&subject={{ subject_filter }}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

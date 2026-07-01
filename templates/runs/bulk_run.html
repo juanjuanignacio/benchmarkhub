@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Run — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+      <li class="breadcrumb-item active">Bulk Run</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-collection-play me-2 text-success"></i>Bulk Run</h2>
+  <p class="text-muted">Run one benchmark against multiple models simultaneously.
+    Each model gets its own run with shared configuration, all tagged with the same bulk ID.</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <form method="post">
+      {% csrf_token %}
+      <div class="card border-secondary">
+        <div class="card-header fw-semibold"><i class="bi bi-gear me-2"></i>Configuration</div>
+        <div class="card-body">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+            <select name="benchmark" class="form-select" required>
+              <option value="">— select —</option>
+              {% for b in benchmarks %}
+              <option value="{{ b.pk }}">{{ b.name }} ({{ b.num_questions }} q)</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+            <select name="provider" class="form-select" required>
+              <option value="">— select —</option>
+              {% for p in providers %}
+              <option value="{{ p.pk }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Model Names <span class="text-danger">*</span>
+              <small class="text-muted fw-normal">(one per line)</small>
+            </label>
+            <textarea name="model_names" class="form-control font-monospace" rows="6" required
+                      placeholder="gpt-4o&#10;gpt-4o-mini&#10;gpt-3.5-turbo"></textarea>
+          </div>
+
+          <hr>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Temperature</label>
+              <input type="number" name="temperature" class="form-control" step="0.1" min="0" max="2" value="0.0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Max Tokens</label>
+              <input type="number" name="max_tokens" class="form-control" min="1" value="512">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Questions</label>
+              <input type="number" name="num_questions" class="form-control" value="0" min="0"
+                     placeholder="0 = all">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Parallel Workers</label>
+              <input type="number" name="parallel_workers" class="form-control" min="1" max="32" value="1">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Worker Mode</label>
+              <select name="worker_mode" class="form-select">
+                <option value="shared">Shared — N total API calls across all models</option>
+                <option value="per_run">Per model — N workers per model, one model at a time</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check mb-2">
+                <input type="checkbox" name="use_cot" class="form-check-input" id="cot">
+                <label class="form-check-label fw-semibold" for="cot">Chain-of-Thought</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">System Prompt <small class="text-muted fw-normal">(shared across all models)</small></label>
+            <textarea name="system_prompt" class="form-control font-monospace" rows="3"
+                      placeholder="Optional system prompt"></textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success"
+                    onclick="this.disabled=true; this.innerHTML='<i class=\'bi bi-hourglass-split me-1\'></i>Starting…'; this.form.submit();">
+              <i class="bi bi-play-fill me-1"></i>Start All Runs
+            </button>
+            <a href="{% url 'runs:list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-secondary">
+      <div class="card-header fw-semibold"><i class="bi bi-info-circle me-2"></i>How it works</div>
+      <div class="card-body small text-muted">
+        <ul class="ps-3">
+          <li class="mb-2">One run is created per model name, all using the same benchmark and configuration.</li>
+          <li class="mb-2">All runs are tagged with a shared <code>bulk_&lt;id&gt;</code> tag so you can filter them together from the runs list.</li>
+          <li class="mb-2">Runs start immediately in background threads — you can watch their progress from the runs list.</li>
+          <li>After completion, use <strong>Compare</strong> to see side-by-side results.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

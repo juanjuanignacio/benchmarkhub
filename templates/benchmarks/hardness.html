@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Hardness Tracker - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-bar-chart-steps me-2 text-warning"></i>Hardness Tracker</h1>
+        <p class="text-muted mb-0">Questions that models consistently get wrong</p>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small text-muted">Filter by Benchmark</label>
+                <select name="benchmark" class="form-select form-select-sm">
+                    <option value="">All Benchmarks</option>
+                    {% for b in all_benchmarks %}
+                    <option value="{{ b.slug }}" {% if benchmark_filter == b.slug %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted">Min Attempts</label>
+                <input type="number" name="min_attempts" class="form-control form-control-sm"
+                    value="{{ min_attempts }}" min="1" max="100">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="mb-3">
+    <small class="text-muted">Analyzed {{ total_analyzed }} questions with at least {{ min_attempts }} attempts.</small>
+</div>
+
+{% if hard_questions %}
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger bg-opacity-25 text-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>Hardest Questions (Fail Rate &gt; 80%)
+        <span class="badge bg-danger ms-2">{{ hard_questions|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Question</th>
+                    <th>Benchmark</th>
+                    <th>Subject</th>
+                    <th>Attempts</th>
+                    <th>Fail Rate</th>
+                    <th>Bar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in hard_questions %}
+                <tr>
+                    <td>
+                        <span class="text-truncate d-inline-block" style="max-width: 280px;" title="{{ item.question.question }}">
+                            {{ item.question.question|truncatechars:80 }}
+                        </span>
+                    </td>
+                    <td><small class="text-muted">{{ item.question.benchmark.name|truncatechars:20 }}</small></td>
+                    <td><small class="text-muted">{{ item.question.subject|truncatechars:20|default:"-" }}</small></td>
+                    <td>{{ item.total }}</td>
+                    <td><strong class="text-danger">{{ item.fail_pct }}%</strong></td>
+                    <td style="min-width: 100px;">
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-danger" style="width: {{ item.fail_pct }}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if controversial_questions %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning bg-opacity-25 text-warning">
+        <i class="bi bi-question-circle me-2"></i>Controversial Questions (30-80% Fail Rate)
+        <span class="badge bg-warning text-dark ms-2">{{ controversial_questions|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Question</th>
+                    <th>Benchmark</th>
+                    <th>Subject</th>
+                    <th>Attempts</th>
+                    <th>Fail Rate</th>
+                    <th>Bar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in controversial_questions %}
+                <tr>
+                    <td>
+                        <span class="text-truncate d-inline-block" style="max-width: 280px;" title="{{ item.question.question }}">
+                            {{ item.question.question|truncatechars:80 }}
+                        </span>
+                    </td>
+                    <td><small class="text-muted">{{ item.question.benchmark.name|truncatechars:20 }}</small></td>
+                    <td><small class="text-muted">{{ item.question.subject|truncatechars:20|default:"-" }}</small></td>
+                    <td>{{ item.total }}</td>
+                    <td><strong class="text-warning">{{ item.fail_pct }}%</strong></td>
+                    <td style="min-width: 100px;">
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-warning" style="width: {{ item.fail_pct }}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not hard_questions and not controversial_questions %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    No hardness data yet. Run benchmarks with multiple models to see which questions are consistently difficult.
+</div>
+{% endif %}
+{% endblock %}

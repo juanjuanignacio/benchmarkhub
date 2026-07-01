@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Benchmarks - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0"><i class="bi bi-collection me-2 text-primary"></i>Benchmarks</h1>
+        <p class="text-muted mb-0">{{ registry_info|length }} benchmarks available</p>
+    </div>
+    <div>
+        <!-- Category filter -->
+        <form method="get" class="d-flex gap-2">
+            <select name="category" class="form-select form-select-sm border-secondary" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for value, label in categories %}
+                <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% if category_filter %}
+            <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for info in registry_info %}
+    {% if not category_filter or info.category == category_filter %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 {% if not info.is_loaded %}opacity-75{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">{{ info.name }}</span>
+                <span class="badge category-badge-{{ info.category }}">{{ info.category|title }}</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-2">{{ info.description|truncatechars:120 }}</p>
+                {% if info.benchmark and info.is_loaded %}
+                <div class="d-flex gap-3 mb-2 flex-wrap">
+                    <span class="text-info small">
+                        <i class="bi bi-question-circle me-1"></i>{{ info.benchmark.num_questions }} questions
+                    </span>
+                    {% if info.benchmark.loaded_at %}
+                    <span class="text-muted small">
+                        <i class="bi bi-clock me-1"></i>{{ info.benchmark.loaded_at|date:"M d, Y" }}
+                    </span>
+                    {% endif %}
+                    {% if info.benchmark.metadata.excludes_images %}
+                    <span class="text-warning small" title="Questions with images were excluded at load time">
+                        <i class="bi bi-image me-1"></i>Images excluded
+                    </span>
+                    {% endif %}
+                </div>
+                {% else %}
+                {% if info.benchmark and info.benchmark.metadata.error %}
+                  {% if info.benchmark.metadata.error_type == 'gated' %}
+                  <div class="alert alert-warning small py-2 px-3 mb-0">
+                    <i class="bi bi-lock me-1"></i><strong>Gated dataset.</strong><br>
+                    This dataset requires approval on HuggingFace:<br>
+                    <ol class="mb-1 ps-3">
+                      <li>Request access on the dataset's HuggingFace page.</li>
+                      <li>Generate a token at <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a>.</li>
+                      <li>Add <code>HF_TOKEN=your_token</code> to the <code>.env</code> file and restart the server.</li>
+                    </ol>
+                  </div>
+                  {% else %}
+                  <div class="alert alert-danger small py-2 px-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <strong>Load error:</strong> {{ info.benchmark.metadata.error|truncatechars:150 }}
+                  </div>
+                  {% endif %}
+                {% else %}
+                <p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Not loaded yet.</p>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="card-footer d-flex gap-2 flex-wrap">
+                {% if info.is_loaded %}
+                <a href="{% url 'benchmarks:detail' info.slug %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i>View
+                </a>
+                <a href="{% url 'benchmarks:questions' info.slug %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-list me-1"></i>Questions
+                </a>
+                <a href="{% url 'benchmarks:export_csv' info.slug %}" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-download me-1"></i>CSV
+                </a>
+                {% endif %}
+                <!-- Load button triggers modal -->
+                <button type="button" class="btn btn-sm {% if info.is_loaded %}btn-outline-warning{% else %}btn-primary{% endif %}"
+                    data-bs-toggle="modal" data-bs-target="#loadModal{{ info.slug|cut:'-'|cut:'_' }}"
+                    title="{% if info.is_loaded %}Reload{% else %}Load{% endif %} from HuggingFace">
+                    <i class="bi bi-cloud-download me-1"></i>{% if info.is_loaded %}Reload{% else %}Load{% endif %}
+                </button>
+                {% if info.is_loaded %}
+                <form method="post" action="{% url 'benchmarks:delete' info.slug %}" class="d-inline"
+                    onsubmit="return confirm('Delete {{ info.name }} and all its questions?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Modal -->
+    <div class="modal fade" id="loadModal{{ info.slug|cut:'-'|cut:'_' }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-cloud-download me-2"></i>Load {{ info.name }}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" action="{% url 'benchmarks:load' info.slug %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <p class="text-muted">This will download the dataset from HuggingFace. The process runs in the background.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Number of Samples</label>
+                            <input type="number" name="num_samples" class="form-control border-secondary"
+                                placeholder="0 = load all" min="0" value="0">
+                            <small class="text-muted">Enter 0 to load all questions. Loading all may take several minutes.</small>
+                        </div>
+                        {% if info.is_loaded %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            This will replace the existing {{ info.benchmark.num_questions }} questions.
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-download me-1"></i>Start Loading
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+{% if not registry_info %}
+<div class="text-center py-5">
+    <i class="bi bi-collection display-1 text-muted"></i>
+    <p class="text-muted mt-3">No benchmarks available.</p>
+</div>
+{% endif %}
+{% endblock %}

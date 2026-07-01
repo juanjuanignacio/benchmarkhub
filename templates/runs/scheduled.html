@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Scheduled Runs — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2><i class="bi bi-calendar-event me-2 text-success"></i>Scheduled Runs</h2>
+    <p class="text-muted mb-0">Runs that execute automatically at a specified time.</p>
+  </div>
+  <a href="{% url 'runs:scheduled_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Schedule Run
+  </a>
+</div>
+
+{% if scheduled_runs %}
+<div class="card border-secondary">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Benchmark</th>
+          <th>Model</th>
+          <th>Next Run</th>
+          <th>Frequency</th>
+          <th>Status</th>
+          <th>Last Run</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sr in scheduled_runs %}
+        <tr class="{% if not sr.is_active %}opacity-50{% endif %}">
+          <td class="fw-semibold">{{ sr.name }}</td>
+          <td>
+            <a href="{% url 'benchmarks:detail' sr.benchmark.slug %}" class="text-decoration-none">
+              {{ sr.benchmark.name }}
+            </a>
+          </td>
+          <td><span class="badge bg-secondary font-monospace">{{ sr.model_name }}</span></td>
+          <td>
+            <span class="{% if sr.run_at < now %}text-danger{% else %}text-muted{% endif %}">
+              {{ sr.run_at|date:"M d, Y H:i" }}
+            </span>
+          </td>
+          <td>
+            {% if sr.frequency == 'once' %}<span class="badge bg-secondary">Once</span>
+            {% elif sr.frequency == 'daily' %}<span class="badge bg-info text-dark">Daily</span>
+            {% elif sr.frequency == 'weekly' %}<span class="badge bg-primary">Weekly</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if sr.is_active %}
+            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>
+            {% else %}
+            <span class="badge bg-secondary"><i class="bi bi-pause me-1"></i>Paused</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if sr.last_run %}
+            <a href="{% url 'runs:detail' sr.last_run.pk %}" class="badge bg-{{ sr.last_run.status|yesno:'success,success,danger,warning,secondary' }} text-decoration-none">
+              #{{ sr.last_run.pk }} — {{ sr.last_run.score|floatformat:1 }}%
+            </a>
+            {% else %}
+            <span class="text-muted small">Never run</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <form method="post" action="{% url 'runs:scheduled_toggle' sr.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm {% if sr.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" title="{% if sr.is_active %}Pause{% else %}Resume{% endif %}">
+                  <i class="bi {% if sr.is_active %}bi-pause-fill{% else %}bi-play-fill{% endif %}"></i>
+                </button>
+              </form>
+              <form method="post" action="{% url 'runs:scheduled_delete' sr.pk %}" onsubmit="return confirm('Delete scheduled run \'{{ sr.name }}\'?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-calendar-x display-1 text-muted"></i>
+  <h4 class="mt-3 text-muted">No scheduled runs</h4>
+  <p class="text-muted">Schedule runs to execute automatically at a specified time.</p>
+  <a href="{% url 'runs:scheduled_create' %}" class="btn btn-primary mt-2">
+    <i class="bi bi-plus-circle me-1"></i>Schedule First Run
+  </a>
+</div>
+{% endif %}
+{% endblock %}

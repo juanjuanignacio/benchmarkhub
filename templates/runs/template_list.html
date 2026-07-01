@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Run Templates — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+        <li class="breadcrumb-item active">Templates</li>
+      </ol>
+    </nav>
+    <h2><i class="bi bi-bookmark-star me-2 text-primary"></i>Run Templates</h2>
+    <p class="text-muted">Saved run configurations. Apply a template when creating a run to avoid re-entering the same parameters.</p>
+  </div>
+  <a href="{% url 'runs:template_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>New Template
+  </a>
+</div>
+
+{% if templates %}
+<div class="table-responsive">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Model</th>
+        <th>Temp</th>
+        <th>Max tokens</th>
+        <th>Questions</th>
+        <th>Options</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in templates %}
+      <tr>
+        <td>
+          <div class="fw-semibold">{{ t.name }}</div>
+          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        </td>
+        <td><code class="small">{{ t.model_name }}</code></td>
+        <td>{{ t.temperature }}</td>
+        <td>{{ t.max_tokens }}</td>
+        <td>{% if t.num_questions %}{{ t.num_questions }}{% else %}<span class="text-muted">all</span>{% endif %}</td>
+        <td>
+          {% if t.parallel_workers > 1 %}<span class="badge bg-secondary me-1">{{ t.parallel_workers }}× parallel</span>{% endif %}
+          {% if t.few_shot_count > 0 %}<span class="badge bg-info me-1">{{ t.few_shot_count }}-shot</span>{% endif %}
+          {% if t.use_cot %}<span class="badge bg-warning text-dark me-1">CoT</span>{% endif %}
+        </td>
+        <td class="text-muted small">{{ t.created_at|date:"M d, Y" }}</td>
+        <td>
+          <div class="d-flex gap-1">
+            <a href="{% url 'runs:create' %}?template={{ t.pk }}"
+               class="btn btn-sm btn-outline-primary" title="Apply template to new run">
+              <i class="bi bi-play-fill"></i>
+            </a>
+            <form method="post" action="{% url 'runs:template_delete' t.pk %}"
+                  onsubmit="return confirm('Delete template \'{{ t.name }}\'?')">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-bookmark-star display-3 mb-3 d-block"></i>
+  <h5>No templates yet</h5>
+  <p>Save a run configuration to reuse it later.</p>
+  <a href="{% url 'runs:template_create' %}" class="btn btn-primary mt-2">
+    <i class="bi bi-plus-lg me-1"></i>Create your first template
+  </a>
+</div>
+{% endif %}
+{% endblock %}

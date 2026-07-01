@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}A/B Testing — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2><i class="bi bi-split me-2 text-warning"></i>A/B Prompt Testing</h2>
+  <p class="text-muted">Run the same model on the same benchmark with two different system prompts and compare results with statistical significance.</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-secondary">
+      <div class="card-header fw-semibold"><i class="bi bi-sliders me-2"></i>Test Configuration</div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+              <select name="benchmark" class="form-select" required>
+                <option value="">Select benchmark…</option>
+                {% for b in benchmarks %}
+                <option value="{{ b.pk }}">{{ b.name }} ({{ b.num_questions }} q)</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+              <select name="provider" id="providerSelect" class="form-select" required>
+                <option value="">Select provider…</option>
+                {% for p in providers %}
+                <option value="{{ p.pk }}" data-type="{{ p.provider_type }}">{{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Model <span class="text-danger">*</span></label>
+              <input type="text" name="model_name" class="form-control" required placeholder="e.g. gpt-4o">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Questions</label>
+              <input type="number" name="num_questions" class="form-control" value="50" min="1">
+              <div class="form-text">Same questions used for both variants</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Temperature</label>
+              <input type="number" name="temperature" class="form-control" value="0" min="0" max="2" step="0.1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Max Tokens</label>
+              <input type="number" name="max_tokens" class="form-control" value="256">
+            </div>
+          </div>
+
+          <hr class="border-secondary">
+          <h5 class="mb-3"><i class="bi bi-layout-split me-2"></i>Variant Prompts</h5>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card border-primary h-100">
+                <div class="card-header bg-primary bg-opacity-10 text-primary fw-semibold">
+                  <i class="bi bi-a-circle me-2"></i>Variant A
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name_a" class="form-control" value="Variant A" placeholder="e.g. Zero-shot">
+                  </div>
+                  <div>
+                    <label class="form-label">System Prompt</label>
+                    <textarea name="system_prompt_a" class="form-control font-monospace" rows="6"
+                              placeholder="Leave empty for no system prompt…"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border-warning h-100">
+                <div class="card-header bg-warning bg-opacity-10 text-warning fw-semibold">
+                  <i class="bi bi-b-circle me-2"></i>Variant B
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name_b" class="form-control" value="Variant B" placeholder="e.g. Chain-of-thought">
+                  </div>
+                  <div>
+                    <label class="form-label">System Prompt</label>
+                    <textarea name="system_prompt_b" class="form-control font-monospace" rows="6"
+                              placeholder="Let's think step by step…"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <button type="submit" class="btn btn-warning btn-lg">
+              <i class="bi bi-play-fill me-2"></i>Start A/B Test
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-secondary mb-3">
+      <div class="card-header"><i class="bi bi-info-circle me-2"></i>How it works</div>
+      <div class="card-body small text-muted">
+        <ol class="ps-3">
+          <li class="mb-2">Two runs are created with identical settings but different system prompts</li>
+          <li class="mb-2">Both run simultaneously in the background</li>
+          <li class="mb-2">Results are compared with <strong>McNemar's statistical test</strong></li>
+          <li>You see which prompt performs better per subject and overall</li>
+        </ol>
+      </div>
+    </div>
+    <div class="card border-secondary">
+      <div class="card-header"><i class="bi bi-book me-2"></i>Quick-load from Library</div>
+      <div class="card-body">
+        <div id="promptLibrary" class="d-flex flex-column gap-2">
+          <p class="text-muted small">Loading prompts…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load prompts from library
+fetch('{% url "benchmarks:prompt_api" %}')
+  .then(r => r.json())
+  .then(data => {
+    const container = document.getElementById('promptLibrary');
+    if (!data.length) {
+      container.innerHTML = '<p class="text-muted small">No saved prompts. <a href="{% url "benchmarks:prompt_create" %}">Create one</a>.</p>';
+      return;
+    }
+    container.innerHTML = data.map(p => `
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-primary flex-fill text-start text-truncate" onclick="loadPromptA('${p.content.replace(/'/g, "\\'")}')">
+          <i class="bi bi-a-circle me-1"></i>${p.name}
+        </button>
+        <button class="btn btn-sm btn-outline-warning" onclick="loadPromptB('${p.content.replace(/'/g, "\\'")}')">B</button>
+      </div>
+    `).join('');
+  })
+  .catch(() => {
+    document.getElementById('promptLibrary').innerHTML = '<p class="text-muted small">Could not load prompts.</p>';
+  });
+
+function loadPromptA(content) {
+  document.querySelector('textarea[name="system_prompt_a"]').value = content;
+}
+function loadPromptB(content) {
+  document.querySelector('textarea[name="system_prompt_b"]').value = content;
+}
+</script>
+{% endblock %}

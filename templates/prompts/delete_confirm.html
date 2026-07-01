@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Delete Prompt — LLM Benchmarks{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card border-danger">
+      <div class="card-header bg-danger text-white">
+        <i class="bi bi-exclamation-triangle me-2"></i>Delete Prompt
+      </div>
+      <div class="card-body">
+        <p>Are you sure you want to delete the prompt <strong>{{ prompt.name }}</strong>?</p>
+        <p class="text-muted small">This action cannot be undone.</p>
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Delete</button>
+          <a href="{% url 'benchmarks:prompt_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Import from HuggingFace - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:list' %}">Benchmarks</a></li>
+        <li class="breadcrumb-item active">Import from HuggingFace</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-cloud-download me-2 text-warning"></i>Import Dataset from HuggingFace</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Requires the <code>datasets</code> library: <code>pip install datasets</code>.
+                    For gated datasets, set the <code>HF_TOKEN</code> environment variable with your HuggingFace access token.
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Dataset Path <span class="text-danger">*</span></label>
+                            <input type="text" name="dataset_path" class="form-control" required
+                                placeholder="e.g. allenai/ai2_arc, cais/mmlu">
+                            <small class="text-muted">HuggingFace dataset identifier (user/dataset-name)</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Config Name</label>
+                            <input type="text" name="config_name" class="form-control"
+                                placeholder="e.g. ARC-Challenge (optional)">
+                            <small class="text-muted">Dataset configuration/subset</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Split</label>
+                            <input type="text" name="split" class="form-control" value="test">
+                            <small class="text-muted">Dataset split (train, test, validation)</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Number of Samples</label>
+                            <input type="number" name="num_samples" class="form-control" value="0" min="0">
+                            <small class="text-muted">0 = import all</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Category</label>
+                            <select name="category" class="form-select">
+                                {% for value, label in categories %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="border-secondary"><p class="text-muted small fw-bold">Column Mapping</p></div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Question Column <span class="text-danger">*</span></label>
+                            <input type="text" name="question_col" class="form-control" value="question" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Answer Column <span class="text-danger">*</span></label>
+                            <input type="text" name="answer_col" class="form-control" value="answer" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Subject Column (optional)</label>
+                            <input type="text" name="subject_col" class="form-control" placeholder="subject">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Choice A Column</label>
+                            <input type="text" name="choice_a_col" class="form-control" placeholder="choice_a">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Choice B Column</label>
+                            <input type="text" name="choice_b_col" class="form-control" placeholder="choice_b">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Choice C Column</label>
+                            <input type="text" name="choice_c_col" class="form-control" placeholder="choice_c">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Choice D Column</label>
+                            <input type="text" name="choice_d_col" class="form-control" placeholder="choice_d">
+                        </div>
+
+                        <div class="col-12"><hr class="border-secondary"><p class="text-muted small fw-bold">Benchmark Info</p></div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Benchmark Name <span class="text-danger">*</span></label>
+                            <input type="text" name="benchmark_name" class="form-control" required
+                                placeholder="e.g. ARC Challenge">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Benchmark Slug</label>
+                            <input type="text" name="benchmark_slug" class="form-control"
+                                placeholder="auto-generated if empty">
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-warning text-dark">
+                            <i class="bi bi-cloud-download me-1"></i>Import Dataset
+                        </button>
+                        <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

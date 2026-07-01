@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}RAG Benchmark — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'benchmarks:list' %}">Benchmarks</a></li>
+      <li class="breadcrumb-item active">RAG Benchmark from CSV</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-file-earmark-text me-2 text-success"></i>RAG Benchmark from CSV</h2>
+  <p class="text-muted">
+    Create a benchmark for evaluating language models in a retrieval-augmented generation setting.
+    Each question has an associated context passage that the model receives as part of its prompt —
+    testing whether it can correctly use the provided information to answer.
+  </p>
+</div>
+
+<div class="row g-4">
+
+  <div class="col-lg-7">
+    <div class="card border-secondary">
+      <div class="card-header fw-semibold"><i class="bi bi-upload me-2"></i>Upload RAG CSV</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Benchmark Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required
+                   placeholder="e.g. PubMed RAG QA, Clinical Notes QA">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <input type="text" name="description" class="form-control"
+                   placeholder="Short description of the dataset and retrieval setup">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Category</label>
+            <select name="category" class="form-select">
+              {% for val, label in categories %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">CSV File <span class="text-danger">*</span></label>
+            <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+            <div class="form-text">
+              Required columns: <code>context</code>, <code>question</code>, <code>correct_answer</code>.
+              Optional: <code>subject</code>, <code>difficulty</code>.
+              Separate answer aliases with <code>|</code> (e.g. <code>Paris|City of Light</code>).
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-plus-circle me-1"></i>Create RAG Benchmark
+            </button>
+            <a href="{% url 'benchmarks:rag_example_csv' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-download me-1"></i>Download Example CSV
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+
+    <div class="card border-secondary mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-info-circle me-2"></i>How RAG Benchmarking Works</div>
+      <div class="card-body small text-muted">
+        <p>Each row in your CSV maps to one benchmark question with its own context passage:</p>
+        <ol class="ps-3 mb-0">
+          <li class="mb-1">The platform sends the model a prompt containing the <strong>context + question</strong>.</li>
+          <li class="mb-1">The model answers based on the provided passage.</li>
+          <li class="mb-1">The answer is compared to <code>correct_answer</code> using normalised word-boundary matching.</li>
+          <li>Use <code>|</code> in <code>correct_answer</code> to define multiple valid answer aliases.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="card border-secondary mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-chat-left-quote me-2"></i>Prompt Sent to Model</div>
+      <div class="card-body">
+        <pre class="small mb-0" style="white-space:pre-wrap;">Based on the following passage, answer
+the question concisely.
+
+Passage:
+{context}
+
+Question: {question}
+Answer:</pre>
+      </div>
+    </div>
+
+    <div class="card border-info">
+      <div class="card-header fw-semibold text-info"><i class="bi bi-lightbulb me-2"></i>Typical Use Cases</div>
+      <div class="card-body small text-muted">
+        <ul class="ps-3 mb-0">
+          <li class="mb-1">Evaluate how well a model uses retrieved PubMed abstracts to answer clinical questions.</li>
+          <li class="mb-1">Test reading comprehension over genomics or pathology reports.</li>
+          <li class="mb-1">Compare models on your own domain-specific knowledge base.</li>
+          <li>Measure the impact of context length on answer quality.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CSV format reference -->
+<div class="card border-secondary mt-4">
+  <div class="card-header fw-semibold"><i class="bi bi-table me-2"></i>CSV Format Reference</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>context</code></td>
+          <td><span class="badge bg-danger">required</span></td>
+          <td>Retrieved passage or document provided to the model</td>
+          <td class="text-muted small">The mitochondria is a membrane-bound organelle…</td>
+        </tr>
+        <tr>
+          <td><code>question</code></td>
+          <td><span class="badge bg-danger">required</span></td>
+          <td>Question the model must answer using the context</td>
+          <td class="text-muted small">What is the primary function of the mitochondria?</td>
+        </tr>
+        <tr>
+          <td><code>correct_answer</code></td>
+          <td><span class="badge bg-danger">required</span></td>
+          <td>Expected answer. Separate aliases with <code>|</code></td>
+          <td class="text-muted small">produce ATP|generate energy</td>
+        </tr>
+        <tr>
+          <td><code>subject</code></td>
+          <td><span class="badge bg-secondary">optional</span></td>
+          <td>Topic/category for per-subject breakdown in results</td>
+          <td class="text-muted small">cell biology</td>
+        </tr>
+        <tr>
+          <td><code>difficulty</code></td>
+          <td><span class="badge bg-secondary">optional</span></td>
+          <td>Difficulty label (easy / medium / hard)</td>
+          <td class="text-muted small">medium</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

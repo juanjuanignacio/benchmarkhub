@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}{{ benchmark.name }} - Benchmarks{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:list' %}">Benchmarks</a></li>
+        <li class="breadcrumb-item active">{{ benchmark.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-1">{{ benchmark.name }}</h1>
+        <p class="text-muted mb-0">{{ benchmark.description }}</p>
+    </div>
+    <span class="badge category-badge-{{ benchmark.category }} fs-6">{{ benchmark.get_category_display }}</span>
+</div>
+
+<!-- Stats cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-primary">{{ question_count }}</div>
+                <div class="text-muted small">Questions</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-info">{{ subjects|length }}</div>
+                <div class="text-muted small">Subjects</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-success">{{ runs|length }}</div>
+                <div class="text-muted small">Recent Runs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Last Loaded</div>
+                <div class="small">{% if benchmark.loaded_at %}{{ benchmark.loaded_at|date:"M d, Y" }}{% else %}Never{% endif %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action buttons -->
+<div class="d-flex gap-2 mb-4 flex-wrap">
+    <a href="{% url 'benchmarks:questions' benchmark.slug %}" class="btn btn-outline-primary">
+        <i class="bi bi-list me-1"></i>View Questions
+    </a>
+    <a href="{% url 'benchmarks:export_csv' benchmark.slug %}" class="btn btn-outline-success">
+        <i class="bi bi-filetype-csv me-1"></i>Export CSV
+    </a>
+    <a href="{% url 'benchmarks:export_excel' benchmark.slug %}" class="btn btn-outline-success">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export Excel
+    </a>
+    <a href="{% url 'benchmarks:import_answers' benchmark.slug %}" class="btn btn-outline-info">
+        <i class="bi bi-upload me-1"></i>Import Answers CSV
+    </a>
+    <a href="{% url 'runs:create' %}" class="btn btn-primary">
+        <i class="bi bi-play-fill me-1"></i>New Run
+    </a>
+    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#reloadModal">
+        <i class="bi bi-cloud-download me-1"></i>Reload
+    </button>
+</div>
+
+{% if subjects %}
+<div class="mb-4">
+    <h5>Subjects</h5>
+    <div class="d-flex flex-wrap gap-1">
+        {% for subject in subjects %}
+        <span class="badge bg-secondary">{{ subject }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent runs table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between">
+        <span><i class="bi bi-play-circle me-2"></i>Recent Runs</span>
+        <a href="{% url 'runs:list' %}?benchmark={{ benchmark.id }}" class="btn btn-sm btn-outline-secondary">View All</a>
+    </div>
+    {% if runs %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Model</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Questions</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr>
+                    <td>{{ run.provider.name }}</td>
+                    <td><code>{{ run.model_name }}</code></td>
+                    <td><span class="badge status-{{ run.status }}">{{ run.get_status_display }}</span></td>
+                    <td>
+                        {% if run.status == 'completed' %}
+                        <span class="fw-bold {% if run.score >= 70 %}text-success{% elif run.score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ run.score|floatformat:1 }}%
+                        </span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{% if run.total_questions %}{{ run.correct_answers }}/{{ run.total_questions }}{% else %}-{% endif %}</td>
+                    <td><span class="text-muted small">{{ run.created_at|date:"M d, H:i" }}</span></td>
+                    <td>
+                        <a href="{% url 'runs:detail' run.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body text-center text-muted">
+        <i class="bi bi-play-circle display-4"></i>
+        <p class="mt-2">No runs yet. <a href="{% url 'runs:create' %}">Start a run</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Reload Modal -->
+<div class="modal fade" id="reloadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reload {{ benchmark.name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'benchmarks:load' benchmark.slug %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Number of Samples (0 = all)</label>
+                        <input type="number" name="num_samples" class="form-control border-secondary" value="0" min="0">
+                    </div>
+                    <div class="alert alert-warning">
+                        This will replace all {{ question_count }} existing questions.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Reload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Prompt Template card -->
+<div class="card mt-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-chat-left-text me-2 text-warning"></i>Prompt Template</span>
+    {% if benchmark.prompt_template %}
+    <form method="post" action="{% url 'benchmarks:set_prompt' benchmark.slug %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="prompt_template" value="">
+      <button type="submit" class="btn btn-sm btn-outline-secondary"
+              onclick="return confirm('Reset to loader default?')">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to default
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-2">
+      Customize the prompt sent to the model for each question.
+      Available placeholders: <code>{question}</code> <code>{choice_a}</code> <code>{choice_b}</code> <code>{choice_c}</code> <code>{choice_d}</code>.
+      Leave blank to use the benchmark loader's default.
+    </p>
+
+    <form method="post" action="{% url 'benchmarks:set_prompt' benchmark.slug %}">
+      {% csrf_token %}
+      <div class="mb-3">
+        <textarea name="prompt_template" class="form-control font-monospace" rows="6"
+                  placeholder="Leave blank to use the loader default"
+                  id="promptTemplateInput">{{ benchmark.prompt_template }}</textarea>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="submit" class="btn btn-warning btn-sm">
+          <i class="bi bi-floppy me-1"></i>Save
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm"
+                data-bs-toggle="collapse" data-bs-target="#promptPreview">
+          <i class="bi bi-eye me-1"></i>Preview default
+        </button>
+      </div>
+    </form>
+
+    {% if default_prompt_preview %}
+    <div class="collapse mt-3" id="promptPreview">
+      <div class="card card-body bg-body-secondary">
+        <div class="text-muted small mb-1 fw-semibold">Loader default (first question):</div>
+        <pre class="mb-0 small" style="white-space: pre-wrap;">{{ default_prompt_preview }}</pre>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if benchmark.prompt_template %}
+    <div class="alert alert-warning mt-3 mb-0 small">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      Custom prompt template is active. The loader default is overridden.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Import info card -->
+<div class="card mt-4">
+    <div class="card-header"><i class="bi bi-upload me-2 text-info"></i>Import RAG Answers</div>
+    <div class="card-body">
+        <p class="text-muted mb-2">
+            Download the questions CSV, run them through your RAG system, then upload the answers for automatic evaluation.
+        </p>
+        <div class="d-flex gap-2">
+            <a href="{% url 'benchmarks:import_answers' benchmark.slug %}" class="btn btn-info">
+                <i class="bi bi-upload me-1"></i>Import Answers CSV
+            </a>
+            <a href="{% url 'benchmarks:export_csv' benchmark.slug %}" class="btn btn-outline-success">
+                <i class="bi bi-download me-1"></i>Download Questions CSV
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

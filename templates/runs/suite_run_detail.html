@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}Suite Run — {{ suite_run.suite.name }} — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'benchmarks:suite_list' %}">Suites</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'benchmarks:suite_detail' suite_run.suite.pk %}">{{ suite_run.suite.name }}</a></li>
+      <li class="breadcrumb-item active">Run #{{ suite_run.pk }}</li>
+    </ol>
+  </nav>
+
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <h2><i class="bi bi-collection-play me-2 text-primary"></i>Suite Run: {{ suite_run.suite.name }}</h2>
+      <p class="text-muted">
+        <span class="badge bg-secondary font-monospace">{{ suite_run.model_name }}</span>
+        via <strong>{{ suite_run.provider.name }}</strong>
+        <span class="ms-2 text-muted small">{{ suite_run.created_at|date:"M d, Y H:i" }}</span>
+      </p>
+    </div>
+    <span class="badge fs-6
+      {% if suite_run.status == 'completed' %}bg-success
+      {% elif suite_run.status == 'running' %}bg-primary
+      {% elif suite_run.status == 'failed' %}bg-danger
+      {% else %}bg-secondary{% endif %}">
+      {{ suite_run.status|capfirst }}
+    </span>
+  </div>
+</div>
+
+<!-- Progress & Score -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-secondary text-center">
+      <div class="card-body">
+        <div class="display-5 fw-bold text-primary">{{ suite_run.total_score|floatformat:1 }}%</div>
+        <div class="text-muted small">Avg Score</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-secondary text-center">
+      <div class="card-body">
+        <div class="display-5 fw-bold">{{ done }}/{{ total }}</div>
+        <div class="text-muted small">Benchmarks Done</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-secondary h-100">
+      <div class="card-body d-flex flex-column justify-content-center">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="small fw-semibold">Progress</span>
+          <span class="small text-muted">{{ progress_pct }}%</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+          <div class="progress-bar {% if suite_run.status == 'completed' %}bg-success{% elif suite_run.status == 'running' %}progress-bar-striped progress-bar-animated{% endif %}"
+               style="width: {{ progress_pct }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Individual runs table -->
+<div class="card border-secondary">
+  <div class="card-header fw-semibold"><i class="bi bi-list-check me-2"></i>Individual Benchmark Runs</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Benchmark</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Questions</th>
+          <th>Duration</th>
+          <th>Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in benchmark_runs %}
+        <tr>
+          <td class="fw-semibold">{{ run.benchmark.name }}</td>
+          <td>
+            <span class="badge
+              {% if run.status == 'completed' %}bg-success
+              {% elif run.status == 'running' %}bg-primary
+              {% elif run.status == 'failed' %}bg-danger
+              {% elif run.status == 'cancelled' %}bg-warning text-dark
+              {% else %}bg-secondary{% endif %}">
+              {% if run.status == 'running' %}<span class="spinner-grow spinner-grow-sm me-1" style="width:.5rem;height:.5rem;"></span>{% endif %}
+              {{ run.status|capfirst }}
+            </span>
+          </td>
+          <td>
+            {% if run.status == 'completed' %}
+            <span class="fw-bold {% if run.score >= 80 %}text-success{% elif run.score >= 60 %}text-warning{% else %}text-danger{% endif %}">
+              {{ run.score|floatformat:1 }}%
+            </span>
+            {% elif run.status == 'running' %}
+            <div class="progress" style="width:80px;height:6px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:{{ run.progress_pct }}%;"></div>
+            </div>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>{{ run.correct_answers }}/{{ run.total_questions }}</td>
+          <td>
+            {% if run.duration_seconds %}
+            {{ run.duration_seconds|floatformat:0 }}s
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'runs:detail' run.pk %}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">No runs started yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh if any run is in progress
+const statuses = [{% for r in benchmark_runs %}"{{ r.status }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+if (statuses.includes('running') || statuses.includes('pending') || '{{ suite_run.status }}' === 'running') {
+  setTimeout(() => location.reload(), 4000);
+}
+</script>
+{% endblock %}

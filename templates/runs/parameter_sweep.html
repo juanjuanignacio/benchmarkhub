@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Parameter Sweep — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+      <li class="breadcrumb-item active">Parameter Sweep</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-sliders2 me-2 text-info"></i>Parameter Sweep</h2>
+  <p class="text-muted">Run the same benchmark with a range of temperatures or different system prompts.
+    Each value creates one independent run; all are tagged with the same sweep ID for easy comparison.</p>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <div class="col-lg-6">
+      <div class="card border-secondary h-100">
+        <div class="card-header fw-semibold"><i class="bi bi-gear me-2"></i>Base Configuration</div>
+        <div class="card-body">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+            <select name="benchmark" class="form-select" required>
+              <option value="">— select —</option>
+              {% for b in benchmarks %}
+              <option value="{{ b.pk }}">{{ b.name }} ({{ b.num_questions }} q)</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+            <select name="provider" class="form-select" required>
+              <option value="">— select —</option>
+              {% for p in providers %}
+              <option value="{{ p.pk }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Model Name <span class="text-danger">*</span></label>
+            <input type="text" name="model_name" class="form-control" required
+                   placeholder="e.g. gpt-4o">
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Max Tokens</label>
+              <input type="number" name="max_tokens" class="form-control" value="512" min="1">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Questions per run</label>
+              <input type="number" name="num_questions" class="form-control" value="0" min="0"
+                     placeholder="0 = all">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Parallel Workers</label>
+              <input type="number" name="parallel_workers" class="form-control" min="1" max="32" value="1">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Worker Mode</label>
+              <select name="worker_mode" class="form-select">
+                <option value="shared">Shared — N total API calls across all variants</option>
+                <option value="per_run">Per variant — N workers per variant, one at a time</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-secondary h-100">
+        <div class="card-header fw-semibold"><i class="bi bi-arrow-repeat me-2"></i>Sweep Parameters</div>
+        <div class="card-body">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Sweep Type</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="sweep_type" id="sweepTemp"
+                       value="temperature" checked onchange="toggleSweepType()">
+                <label class="form-check-label" for="sweepTemp">Temperature sweep</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="sweep_type" id="sweepPrompt"
+                       value="prompt" onchange="toggleSweepType()">
+                <label class="form-check-label" for="sweepPrompt">Prompt sweep</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Temperature sweep -->
+          <div id="tempSection">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Temperatures</label>
+              <input type="text" name="temperatures" class="form-control font-monospace"
+                     value="0.0, 0.3, 0.7, 1.0"
+                     placeholder="Comma-separated, e.g. 0.0, 0.5, 1.0">
+              <div class="form-text">One run will be created per value.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">System Prompt (shared)</label>
+              <textarea name="base_system_prompt" class="form-control font-monospace" rows="4"
+                        placeholder="Optional — same prompt used across all temperature variants"></textarea>
+            </div>
+          </div>
+
+          <!-- Prompt sweep -->
+          <div id="promptSection" style="display:none">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Temperature</label>
+              <input type="number" name="temperature" class="form-control" step="0.1" min="0" max="2" value="0.0">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">System Prompts</label>
+              <textarea name="prompts" class="form-control font-monospace" rows="10"
+                        placeholder="Write each prompt variant separated by a line containing only ---
+
+Prompt 1: Answer only with the letter.
+---
+Prompt 2: Think carefully before answering.
+---
+Prompt 3: You are an expert. Answer concisely."></textarea>
+              <div class="form-text">Separate variants with a line containing only <code>---</code>.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="mt-4">
+    <button type="submit" class="btn btn-info text-white">
+      <i class="bi bi-play-fill me-1"></i>Start Sweep
+    </button>
+    <a href="{% url 'runs:list' %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSweepType() {
+  const isTemp = document.getElementById('sweepTemp').checked;
+  document.getElementById('tempSection').style.display = isTemp ? '' : 'none';
+  document.getElementById('promptSection').style.display = isTemp ? 'none' : '';
+}
+</script>
+{% endblock %}

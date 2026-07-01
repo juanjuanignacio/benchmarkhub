@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Import Answers - {{ benchmark.name }}{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:list' %}">Benchmarks</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:detail' benchmark.slug %}">{{ benchmark.name }}</a></li>
+        <li class="breadcrumb-item active">Import Answers</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-upload me-2 text-info"></i>Import RAG Answers for {{ benchmark.name }}</h5>
+            </div>
+            <div class="card-body">
+                <!-- Instructions -->
+                <div class="alert alert-info mb-4">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>How to use this tool</h6>
+                    <ol class="mb-0">
+                        <li>Download the questions CSV from the benchmark detail page</li>
+                        <li>Run the questions through your RAG system or manually answer them</li>
+                        <li>Create a CSV with columns <code>question_id</code> and <code>answer</code></li>
+                        <li>Upload the CSV here with your RAG/model name</li>
+                        <li>Results will be evaluated and a run will be created automatically</li>
+                    </ol>
+                </div>
+
+                {% if is_rag %}
+                <div class="alert alert-success mb-3">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>RAG Benchmark</strong> — answers will be evaluated using word-boundary matching against the expected answer.
+                    Provide the full text answer in the <code>answer</code> column (not a letter).
+                </div>
+                {% endif %}
+
+                <!-- Example CSV -->
+                <div class="mb-4">
+                    <h6 class="text-muted"><i class="bi bi-file-earmark-code me-2"></i>Example CSV Format</h6>
+                    {% if is_rag %}
+                    <pre class="mb-0">question_id,answer
+0,The mitochondria generates ATP through oxidative phosphorylation
+1,Paris
+2,Marie Curie</pre>
+                    <small class="text-muted">
+                        The <code>question_id</code> must match the IDs from the exported questions CSV.
+                        The <code>answer</code> should be the free-text answer your RAG system produced.
+                    </small>
+                    {% else %}
+                    <pre class="mb-0">question_id,answer
+0,A
+1,C
+2,B
+3,D
+4,A</pre>
+                    <small class="text-muted">
+                        The <code>question_id</code> must match the IDs from the exported questions CSV.
+                        The <code>answer</code> should be the letter (A/B/C/D) for multiple-choice benchmarks,
+                        or the full text for open-ended benchmarks.
+                    </small>
+                    {% endif %}
+                </div>
+
+                <!-- Import Form -->
+                <form method="post" enctype="multipart/form-data" action="{% url 'benchmarks:import_answers' benchmark.slug %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            RAG / Model Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="model_name" class="form-control border-secondary"
+                            placeholder="e.g. My RAG v1, GPT-4 Manual, LlamaIndex v0.2" required
+                            maxlength="200">
+                        <small class="text-muted">A name to identify this set of answers in the leaderboard.</small>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            CSV File <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" name="csv_file" class="form-control border-secondary"
+                            accept=".csv,text/csv" required>
+                        <small class="text-muted">Upload a CSV file with <code>question_id</code> and <code>answer</code> columns.</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-info">
+                            <i class="bi bi-upload me-1"></i>Import & Evaluate
+                        </button>
+                        <a href="{% url 'benchmarks:detail' benchmark.slug %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Benchmark
+                        </a>
+                        <a href="{% url 'benchmarks:export_csv' benchmark.slug %}" class="btn btn-outline-success">
+                            <i class="bi bi-download me-1"></i>Download Questions CSV
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Benchmark info -->
+        <div class="card">
+            <div class="card-header">Benchmark Info</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-4 text-muted">Name</dt>
+                    <dd class="col-8">{{ benchmark.name }}</dd>
+                    <dt class="col-4 text-muted">Category</dt>
+                    <dd class="col-8">
+                        <span class="badge category-badge-{{ benchmark.category }}">{{ benchmark.get_category_display }}</span>
+                    </dd>
+                    <dt class="col-4 text-muted">Questions</dt>
+                    <dd class="col-8">{{ benchmark.num_questions }}</dd>
+                    <dt class="col-4 text-muted">Description</dt>
+                    <dd class="col-8">{{ benchmark.description }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

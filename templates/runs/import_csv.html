@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Import CSV Answers — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+      <li class="breadcrumb-item active">Import CSV Answers</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-upload me-2 text-info"></i>Import CSV Answers</h2>
+  <p class="text-muted">Upload answers from a RAG or manual evaluation. Creates a run with the evaluated results.</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card border-secondary">
+      <div class="card-header fw-semibold"><i class="bi bi-file-earmark-arrow-up me-2"></i>Upload Answers</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+            <select name="benchmark" id="benchmarkSelect" class="form-select" required>
+              <option value="">Select benchmark…</option>
+              {% for b in benchmarks %}
+              <option value="{{ b.pk }}"
+                data-export-url="{% url 'benchmarks:export_csv' b.slug %}"
+                data-is-rag="{{ b.metadata.is_rag|yesno:'true,false,false' }}">
+                {{ b.name }} ({{ b.num_questions }} questions)
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Model / RAG Name <span class="text-danger">*</span></label>
+            <input type="text" name="model_name" class="form-control" required
+                   placeholder="e.g. My RAG v2, Claude-3.5-manual, GPT-4-RAG">
+            <div class="form-text">A descriptive name for this evaluation (shown in results).</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">CSV File <span class="text-danger">*</span></label>
+            <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tags</label>
+            <input type="text" name="tags" class="form-control"
+                   placeholder="csv,rag,manual (comma-separated)">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"
+                      placeholder="Any notes about this evaluation…"></textarea>
+          </div>
+
+          <div id="ragNote" class="alert alert-success py-2 small mb-3" style="display:none;">
+            <i class="bi bi-check-circle me-1"></i>
+            <strong>RAG Benchmark</strong> — provide free-text answers in the <code>answer</code> column (not A/B/C/D).
+          </div>
+
+          <div class="d-flex gap-2 align-items-center">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-upload me-1"></i>Import &amp; Evaluate
+            </button>
+            <div id="downloadCsvBtn" class="d-none">
+              <a id="downloadLink" href="#" class="btn btn-outline-info">
+                <i class="bi bi-download me-1"></i>Download Questions CSV
+              </a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-secondary mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-info-circle me-2"></i>How to Use</div>
+      <div class="card-body small">
+        <ol class="ps-3">
+          <li class="mb-2"><strong>Select a benchmark</strong> and download its questions CSV.</li>
+          <li class="mb-2">Run the questions through your <strong>RAG or model</strong>.</li>
+          <li class="mb-2">Fill in the <code>answer</code> column with responses (A/B/C/D for MCQ, or text).</li>
+          <li class="mb-2"><strong>Upload the answered CSV</strong> here — the system evaluates and creates a run.</li>
+        </ol>
+        <div class="alert alert-secondary py-2 px-3 small mb-0">
+          <i class="bi bi-lightbulb me-1"></i>
+          Tip: The CSV needs at least columns <code>question_id</code> and <code>answer</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-secondary">
+      <div class="card-header fw-semibold"><i class="bi bi-file-earmark-code me-2"></i>Expected CSV Format</div>
+      <div class="card-body">
+        <pre class="bg-body-secondary p-3 rounded small mb-2">question_id,answer
+mmlu_0,A
+mmlu_1,C
+mmlu_2,B
+mmlu_3,D</pre>
+        <p class="text-muted small mb-0">
+          <strong>question_id</strong>: must match exactly the IDs from the downloaded questions CSV.<br>
+          <strong>answer</strong>: letter (A/B/C/D/E) for MCQ, or text for open-ended.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('benchmarkSelect').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  const btn = document.getElementById('downloadCsvBtn');
+  const link = document.getElementById('downloadLink');
+  const ragNote = document.getElementById('ragNote');
+  if (this.value && opt.dataset.exportUrl) {
+    btn.classList.remove('d-none');
+    link.href = opt.dataset.exportUrl;
+    if (ragNote) ragNote.style.display = opt.dataset.isRag === 'true' ? '' : 'none';
+  } else {
+    btn.classList.add('d-none');
+    if (ragNote) ragNote.style.display = 'none';
+  }
+});
+</script>
+{% endblock %}

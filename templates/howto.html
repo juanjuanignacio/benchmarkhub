@@ -1,0 +1,738 @@
+{% extends 'base.html' %}
+{% block title %}How To — LLM Benchmarks{% endblock %}
+
+{% block content %}
+{% load static %}
+
+<div class="mb-4">
+    <h2><i class="bi bi-book me-2 text-primary"></i>How To Guide</h2>
+    <p class="text-muted">Complete guide to all platform features.</p>
+</div>
+
+<div class="row g-4">
+
+    <!-- Table of contents -->
+    <div class="col-lg-3 d-none d-lg-block">
+        <div class="card sticky-top" style="top: 76px;">
+            <div class="card-header fw-semibold small">
+                <i class="bi bi-list-ul me-2"></i>Contents
+            </div>
+            <div class="list-group list-group-flush small">
+                <a href="#sec-dashboard"  class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-speedometer me-2 text-primary"></i>Dashboard</a>
+                <a href="#sec-providers"  class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-cpu me-2 text-secondary"></i>Providers</a>
+                <a href="#sec-runs"       class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-play-circle me-2 text-primary"></i>Launching Runs</a>
+                <a href="#sec-advanced"   class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-gear me-2 text-secondary"></i>Advanced Run Options</a>
+                <a href="#sec-prompts"    class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-chat-square-text me-2 text-info"></i>Prompt Library</a>
+                <a href="#sec-ab"         class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-split me-2 text-warning"></i>A/B Testing</a>
+                <a href="#sec-compare"    class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-arrow-left-right me-2 text-info"></i>Compare Runs</a>
+                <a href="#sec-bulk"       class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-collection-play me-2 text-success"></i>Bulk Run</a>
+                <a href="#sec-sweep"      class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-sliders2 me-2 text-danger"></i>Parameter Sweep</a>
+                <a href="#sec-templates"  class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-bookmark-star me-2 text-secondary"></i>Run Templates</a>
+                <a href="#sec-scheduled"  class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-calendar-event me-2 text-info"></i>Scheduled Runs</a>
+                <a href="#sec-retry"      class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-arrow-clockwise me-2 text-warning"></i>Retry Failed</a>
+                <a href="#sec-export"     class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-download me-2 text-success"></i>Export Results</a>
+                <a href="#sec-cost"       class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-calculator me-2 text-primary"></i>Cost Estimator</a>
+                <a href="#sec-leaderboard" class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-trophy me-2 text-warning"></i>Leaderboard</a>
+                <a href="#sec-hardness"   class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-bar-chart-steps me-2 text-danger"></i>Hardness Tracker</a>
+                <a href="#sec-history"    class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-clock-history me-2 text-secondary"></i>Model History</a>
+                <a href="#sec-suites"     class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-collection me-2" style="color:#a78bfa"></i>Benchmark Suites</a>
+                <a href="#sec-benchmarks" class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-file-earmark-plus me-2 text-success"></i>Custom Benchmarks</a>
+                <a href="#sec-hf"         class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-cloud-download me-2 text-primary"></i>Import from HuggingFace</a>
+                <a href="#sec-rag"        class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-file-earmark-text me-2 text-info"></i>RAG Benchmark</a>
+                <a href="#sec-csv"        class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-upload me-2 text-warning"></i>Import CSV Results</a>
+                <a href="#sec-api"        class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-code-slash me-2 text-info"></i>REST API</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="col-lg-9">
+
+        <!-- ── Dashboard ── -->
+        <div class="card mb-4" id="sec-dashboard">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-speedometer text-primary fs-5"></i>
+                <span>Dashboard</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">The <a href="{% url 'dashboard' %}"><strong>Dashboard</strong></a> gives you an at-a-glance summary of the entire platform.</p>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-bar-chart me-2 text-primary"></i>Stats cards</h6>
+                            <p class="small text-muted mb-0">Total benchmarks loaded, runs executed, questions answered, and average score across all completed runs.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-graph-up me-2 text-success"></i>Run activity</h6>
+                            <p class="small text-muted mb-0">Chart showing run frequency over the last 14 days so you can spot usage trends.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-trophy me-2 text-warning"></i>Best scores</h6>
+                            <p class="small text-muted mb-0">Best score per benchmark — instantly see which model leads on each one.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-cpu me-2 text-info"></i>Top models</h6>
+                            <p class="small text-muted mb-0">Top 10 models ranked by average score across all benchmarks.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    The dashboard also shows benchmark coverage — how many benchmarks from the registry are already loaded vs. still available to download.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Providers ── -->
+        <div class="card mb-4" id="sec-providers">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-cpu text-secondary fs-5"></i>
+                <span>Configuring Providers</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted"><strong>Providers</strong> are the connections to LLMs. You must configure at least one before launching runs.</p>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><span class="badge provider-type-ollama me-2">Ollama</span>Local</h6>
+                            <p class="small text-muted mb-0">Models running on your machine. Only needs the URL (<code>http://localhost:11434</code>). No API key required.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><span class="badge provider-type-openai me-2">OpenAI</span>API</h6>
+                            <p class="small text-muted mb-0">GPT-4, GPT-3.5 and any OpenAI-compatible endpoint. Requires an API key.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><span class="badge provider-type-anthropic me-2">Anthropic</span>API</h6>
+                            <p class="small text-muted mb-0">Claude 3/4 family. Requires an Anthropic API key.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><span class="badge provider-type-gemini me-2">Gemini</span>API</h6>
+                            <p class="small text-muted mb-0">Google Gemini models. Requires a Google AI API key.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><span class="badge provider-type-groq me-2">Groq</span>API</h6>
+                            <p class="small text-muted mb-0">Ultra-fast inference via Groq cloud. Requires a Groq API key.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><span class="badge provider-type-vllm me-2">vLLM</span>Local / Remote</h6>
+                            <p class="small text-muted mb-0">Your own vLLM server. Enter the server's base URL. Optional API key.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-semibold mb-2">Add a provider</h6>
+                <ol class="mb-0">
+                    <li>Go to <a href="{% url 'providers:create' %}"><strong>Providers → Add Provider</strong></a>.</li>
+                    <li>Select the type, enter a name, base URL, and API key if required.</li>
+                    <li>Click <strong>Test Connection</strong> — the platform queries the provider and lists available models.</li>
+                    <li>Save. The provider now appears as an option when creating runs.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ── Launching Runs ── -->
+        <div class="card mb-4" id="sec-runs">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-play-circle text-primary fs-5"></i>
+                <span>Launching Runs</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">A <strong>Run</strong> is the execution of a benchmark against an LLM. Each question is sent to the model and the answer is automatically evaluated.</p>
+                <h6 class="fw-semibold mb-2">Basic steps</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:create' %}"><strong>Runs → New Run</strong></a>.</li>
+                    <li>Select the <strong>benchmark</strong> you want to evaluate (must be loaded first).</li>
+                    <li>Choose the <strong>provider</strong> and <strong>model</strong>.</li>
+                    <li>Optionally adjust temperature, max tokens, and system prompt.</li>
+                    <li>Click <strong>Start Run</strong>. Progress updates in real time — the page auto-refreshes when done.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    To load a benchmark that isn't loaded yet, go to <a href="{% url 'benchmarks:list' %}"><strong>Benchmarks → All Benchmarks</strong></a> and click <strong>Load</strong> next to it.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Advanced Run Options ── -->
+        <div class="card mb-4" id="sec-advanced">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-gear text-secondary fs-5"></i>
+                <span>Advanced Run Options</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">The run creation form exposes several advanced settings to fine-tune how the model is evaluated.</p>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Option</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Temperature</strong></td>
+                                <td>Controls randomness (0 = deterministic, 1 = creative). Use low values for reproducible evals.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Max tokens</strong></td>
+                                <td>Maximum tokens in the model's response. Keep low for multiple-choice, higher for open-ended.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>System prompt</strong></td>
+                                <td>Global instruction prepended to every question. Select from the Prompt Library or write a custom one inline.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Few-shot examples</strong></td>
+                                <td>Number of solved examples prepended to each question to guide the model (in-context learning).</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Chain-of-Thought</strong></td>
+                                <td>Appends "Let's think step by step" to each question, encouraging the model to reason before answering.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Parallel workers</strong></td>
+                                <td>Number of concurrent requests. Higher values speed up the run but may hit rate limits.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Webhook URL</strong></td>
+                                <td>A URL called via POST when the run completes. Useful for CI/CD pipelines or alerting.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tags</strong></td>
+                                <td>Comma-separated labels to organize and filter runs later (e.g. <code>baseline</code>, <code>v2</code>).</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Notes</strong></td>
+                                <td>Free-text field for experiment notes, hypotheses, or change descriptions.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Save your favourite configuration as a <a href="#sec-templates"><strong>Run Template</strong></a> to reuse it without filling the form again.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Prompt Library ── -->
+        <div class="card mb-4" id="sec-prompts">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-chat-square-text text-info fs-5"></i>
+                <span>Prompt Library</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Store reusable system prompts that can be selected when creating runs — no need to retype the same instruction every time.</p>
+                <h6 class="fw-semibold mb-2">Create a prompt</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'benchmarks:prompt_list' %}"><strong>Benchmarks → Prompt Library</strong></a>.</li>
+                    <li>Click <strong>New Prompt</strong> and enter a name and system text.</li>
+                    <li>When creating a run, pick the prompt from the <em>System Prompt</em> dropdown — it auto-fills the field.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Combine the Prompt Library with <a href="#sec-ab">A/B testing</a> or <a href="#sec-sweep">Parameter Sweep</a> to measure the effect of different instructions on the same model.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── A/B Testing ── -->
+        <div class="card mb-4" id="sec-ab">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-split text-warning fs-5"></i>
+                <span>A/B Testing</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Statistically compare two runs to determine whether the performance difference is significant or just noise.</p>
+                <h6 class="fw-semibold mb-2">How to use it</h6>
+                <ol class="mb-3">
+                    <li>Execute two runs on the <strong>same benchmark</strong> (different model, temperature, or prompt).</li>
+                    <li>Go to <a href="{% url 'runs:ab_test' %}"><strong>Runs → A/B Testing</strong></a>.</li>
+                    <li>Select the two runs and click <strong>Run A/B Test</strong>.</li>
+                    <li>Results show the score difference, p-value (McNemar test), and whether the difference is statistically significant.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    A p-value &lt; 0.05 means the difference is unlikely to be random. The results also highlight individual questions where the two runs disagree.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Compare Runs ── -->
+        <div class="card mb-4" id="sec-compare">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-arrow-left-right text-info fs-5"></i>
+                <span>Compare Runs</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Compare up to <strong>4 completed runs</strong> side by side — scores, subject breakdowns, and question-level disagreements.</p>
+                <h6 class="fw-semibold mb-2">Steps</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:compare' %}"><strong>Runs → Compare Runs</strong></a>.</li>
+                    <li>Select 2–4 completed runs from the same benchmark.</li>
+                    <li>Click <strong>Compare</strong>.</li>
+                </ol>
+                <h6 class="fw-semibold mb-2">What you see</h6>
+                <ul class="mb-3">
+                    <li><strong>Score table</strong> — accuracy per run, colour-coded for quick reading.</li>
+                    <li><strong>Subject breakdown</strong> — bar chart and table showing accuracy per subject or category.</li>
+                    <li><strong>Disagreements</strong> — questions where runs give different answers, helping you spot where models diverge.</li>
+                </ul>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Unlike A/B Testing, Compare Runs is visual and multi-run — ideal for exploratory analysis rather than statistical hypothesis testing.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Bulk Run ── -->
+        <div class="card mb-4" id="sec-bulk">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-collection-play text-success fs-5"></i>
+                <span>Bulk Run</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Test the same benchmark against multiple models in a single operation — all runs are created and started automatically.</p>
+                <h6 class="fw-semibold mb-2">How to use it</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:bulk_run' %}"><strong>Runs → Bulk Run</strong></a>.</li>
+                    <li>Select one or more <strong>benchmarks</strong>.</li>
+                    <li>Select one or more <strong>models</strong> (from any configured provider).</li>
+                    <li>Set shared parameters (temperature, max tokens, prompt).</li>
+                    <li>Click <strong>Launch All</strong>. All runs are tagged with a shared <code>bulk_&lt;ID&gt;</code> tag for easy filtering.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    After the bulk run completes, use <a href="#sec-compare">Compare Runs</a> or the <a href="#sec-leaderboard">Leaderboard</a> to see results side by side.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Parameter Sweep ── -->
+        <div class="card mb-4" id="sec-sweep">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-sliders2 text-danger fs-5"></i>
+                <span>Parameter Sweep</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Perform a grid search over model hyperparameters or prompts to find the optimal configuration automatically.</p>
+                <h6 class="fw-semibold mb-2">Sweep modes</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-thermometer-half me-2 text-danger"></i>Temperature sweep</h6>
+                            <p class="small text-muted mb-0">Define a range (e.g. 0.0 → 1.0, step 0.2). One run is created per temperature value.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-chat-square-dots me-2 text-info"></i>Prompt sweep</h6>
+                            <p class="small text-muted mb-0">Select multiple prompts from the library. One run is created per prompt.</p>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="fw-semibold mb-2">Steps</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:parameter_sweep' %}"><strong>Runs → Parameter Sweep</strong></a>.</li>
+                    <li>Choose the benchmark, provider, and base model.</li>
+                    <li>Select the sweep mode and configure the range or prompts.</li>
+                    <li>All runs are created tagged with a shared <code>sweep_&lt;ID&gt;</code> tag.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+                    Mind the cost: N temperature values × M token values = N×M runs. Use <a href="#sec-cost">Cost Estimator</a> first.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Run Templates ── -->
+        <div class="card mb-4" id="sec-templates">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-bookmark-star text-secondary fs-5"></i>
+                <span>Run Templates</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Save a complete run configuration — benchmark, model, temperature, prompt, few-shot count, etc. — so you can reuse it with one click.</p>
+                <h6 class="fw-semibold mb-2">Save a template</h6>
+                <ol class="mb-3">
+                    <li>When creating a run, fill in the desired configuration.</li>
+                    <li>Click <strong>Save as Template</strong> before submitting, give it a name.</li>
+                    <li>The template is saved and listed under <a href="{% url 'runs:template_list' %}"><strong>Runs → Run Templates</strong></a>.</li>
+                </ol>
+                <h6 class="fw-semibold mb-2">Use a template</h6>
+                <ol class="mb-0">
+                    <li>Go to <a href="{% url 'runs:template_list' %}"><strong>Runs → Run Templates</strong></a>.</li>
+                    <li>Click <strong>Use Template</strong> next to the one you want.</li>
+                    <li>The New Run form opens pre-filled. Adjust anything you need and click <strong>Start Run</strong>.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ── Scheduled Runs ── -->
+        <div class="card mb-4" id="sec-scheduled">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-calendar-event text-info fs-5"></i>
+                <span>Scheduled Runs</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Schedule runs to execute automatically at a specific time or on a recurring basis — ideal for regression testing after model updates.</p>
+                <h6 class="fw-semibold mb-2">Create a scheduled run</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:scheduled_create' %}"><strong>Runs → Scheduled Runs → New</strong></a>.</li>
+                    <li>Select the benchmark, provider, model, and run parameters.</li>
+                    <li>Set the schedule — a one-off date/time or a recurring interval (cron expression).</li>
+                    <li>The system launches the run automatically at the scheduled time.</li>
+                </ol>
+                <h6 class="fw-semibold mb-2">Manage scheduled runs</h6>
+                <p class="text-muted small">From <a href="{% url 'runs:scheduled_list' %}"><strong>Scheduled Runs</strong></a> you can <strong>enable/disable</strong> individual schedules without deleting them, or delete ones you no longer need.</p>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Combine with <a href="#sec-history">Model History</a> to automatically track performance drift over time.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Retry Failed ── -->
+        <div class="card mb-4" id="sec-retry">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-arrow-clockwise text-warning fs-5"></i>
+                <span>Retry Failed Questions</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">If some questions in a run errored (network timeout, rate limit, etc.), you can retry only those questions without re-running the entire benchmark.</p>
+                <h6 class="fw-semibold mb-2">Steps</h6>
+                <ol class="mb-3">
+                    <li>Open the <strong>Run Detail</strong> page of the affected run.</li>
+                    <li>Click <strong>Retry Failed</strong>. A new run is created containing only the questions that errored or were skipped.</li>
+                    <li>The new run uses the same configuration (model, temperature, prompt) as the original.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    The retry run is a separate run — you can compare it against the original using <a href="#sec-compare">Compare Runs</a>.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Export ── -->
+        <div class="card mb-4" id="sec-export">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-download text-success fs-5"></i>
+                <span>Export Results</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Download run results or benchmark questions for external analysis in Excel or CSV format.</p>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Run results → Excel</h6>
+                            <p class="small text-muted mb-0">3-sheet workbook: <em>Summary</em> (metadata &amp; score), <em>By Subject</em> (accuracy per category), <em>Results</em> (every question with model answer).</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-filetype-csv me-2 text-warning"></i>Run results → CSV</h6>
+                            <p class="small text-muted mb-0">Flat CSV with one row per question: ID, question, model answer, correct answer, is_correct, tokens, latency.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-file-earmark-spreadsheet me-2 text-primary"></i>Benchmark questions → Excel / CSV</h6>
+                            <p class="small text-muted mb-0">Export all questions from a benchmark. Useful for manual review or to seed another tool.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-filetype-csv me-2 text-info"></i>API export</h6>
+                            <p class="small text-muted mb-0">All run and benchmark data is also accessible via the <a href="#sec-api">REST API</a> for programmatic export.</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">Both <strong>Export CSV</strong> and <strong>Export Excel</strong> buttons appear on the <strong>Run Detail</strong> page and the <strong>Benchmark Detail</strong> page.</p>
+            </div>
+        </div>
+
+        <!-- ── Cost Estimator ── -->
+        <div class="card mb-4" id="sec-cost">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-calculator text-primary fs-5"></i>
+                <span>Cost Estimator</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Estimate the token cost of a run before launching it — especially useful before bulk runs or parameter sweeps.</p>
+                <h6 class="fw-semibold mb-2">Steps</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:estimate_cost' %}"><strong>Runs → Estimate Cost</strong></a>.</li>
+                    <li>Select the model and enter the number of questions.</li>
+                    <li>The estimator shows projected input tokens, output tokens, and total cost in real time.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Estimates are based on average question length for the selected benchmark. Actual costs may vary depending on model verbosity and system prompt length.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Leaderboard ── -->
+        <div class="card mb-4" id="sec-leaderboard">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-trophy text-warning fs-5"></i>
+                <span>Leaderboard</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">The <a href="{% url 'benchmarks:leaderboard' %}"><strong>Leaderboard</strong></a> ranks models by their best score on each benchmark, using Wilson score confidence intervals for robust ranking even with small sample sizes.</p>
+                <h6 class="fw-semibold mb-2">Features</h6>
+                <ul class="mb-3">
+                    <li><strong>Filter by benchmark</strong> — focus on a specific benchmark to compare models head-to-head.</li>
+                    <li><strong>Wilson confidence intervals</strong> — lower bound is used for ranking so models with few questions aren't over-promoted.</li>
+                    <li><strong>Score history</strong> — see how each model has improved across successive runs.</li>
+                </ul>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Only completed runs appear on the leaderboard. Each model is represented by its single best run per benchmark.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Hardness Tracker ── -->
+        <div class="card mb-4" id="sec-hardness">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-bar-chart-steps text-danger fs-5"></i>
+                <span>Hardness Tracker</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">The <a href="{% url 'benchmarks:hardness' %}"><strong>Hardness Tracker</strong></a> analyses every question across all runs to classify questions by difficulty.</p>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Category</th><th>Criteria</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><span class="badge bg-success">Easy</span></td><td>Most models answer correctly (&gt;75% success rate)</td></tr>
+                            <tr><td><span class="badge bg-warning text-dark">Controversial</span></td><td>Some models get it right, others wrong (25–75% success rate)</td></tr>
+                            <tr><td><span class="badge bg-danger">Hard</span></td><td>Most models fail (&lt;25% success rate)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Use the hardness data to build targeted benchmarks focusing on the most discriminating questions — those where models actually disagree.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Model History ── -->
+        <div class="card mb-4" id="sec-history">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history text-secondary fs-5"></i>
+                <span>Model History</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Track how a specific model's performance evolves over time across benchmarks — useful for detecting regressions or improvements after fine-tuning.</p>
+                <h6 class="fw-semibold mb-2">Steps</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'runs:model_history' %}"><strong>Runs → Model History</strong></a>.</li>
+                    <li>Select the model you want to track.</li>
+                    <li>The page shows a timeline of all runs for that model with scores plotted over time per benchmark.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Combine with <a href="#sec-scheduled">Scheduled Runs</a> to automatically capture snapshots at regular intervals.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Suites ── -->
+        <div class="card mb-4" id="sec-suites">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-collection fs-5" style="color: #a78bfa;"></i>
+                <span>Benchmark Suites</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">A <strong>Suite</strong> groups several benchmarks into a single named collection. Running a suite evaluates the model on all included benchmarks and produces an aggregate score.</p>
+                <h6 class="fw-semibold mb-2">Create and run a suite</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'benchmarks:suite_list' %}"><strong>Benchmarks → Benchmark Suites</strong></a>.</li>
+                    <li>Click <strong>Create Suite</strong>, give it a name, and add the desired benchmarks.</li>
+                    <li>From the suite detail page, click <strong>Run Suite</strong> — select the model and execution mode (sequential or parallel).</li>
+                    <li>Suite results show the score per benchmark and the global weighted average.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Suites are ideal for holistic evaluations — e.g. group all reasoning benchmarks together and compare models on the combined result.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Custom Benchmarks ── -->
+        <div class="card mb-4" id="sec-benchmarks">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-plus text-success fs-5"></i>
+                <span>Custom Benchmarks</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Create your own benchmark by uploading questions in CSV format. Download the example CSV template to get started quickly.</p>
+                <h6 class="fw-semibold mb-2">CSV format</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Column</th><th>Required</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>question</code></td><td><span class="badge status-completed">Yes</span></td><td>Question text</td></tr>
+                            <tr><td><code>correct_answer</code></td><td><span class="badge status-completed">Yes</span></td><td>Expected correct answer</td></tr>
+                            <tr><td><code>choice_a</code> … <code>choice_d</code></td><td><span class="badge status-pending">No</span></td><td>Multiple choice options (A–D)</td></tr>
+                            <tr><td><code>subject</code> / <code>category</code></td><td><span class="badge status-pending">No</span></td><td>Topic group for per-subject analysis</td></tr>
+                            <tr><td><code>difficulty</code></td><td><span class="badge status-pending">No</span></td><td><code>easy</code> / <code>medium</code> / <code>hard</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'benchmarks:custom' %}"><strong>Benchmarks → Custom Benchmark</strong></a>.</li>
+                    <li>Download the <strong>Example CSV</strong> if needed.</li>
+                    <li>Upload your CSV, set a name, description, and category.</li>
+                    <li>The benchmark is immediately available for runs — no loading step needed.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    You can also import manual answers for a custom benchmark via <a href="#sec-csv">Import CSV Results</a> — useful when you have pre-computed model outputs.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── HuggingFace ── -->
+        <div class="card mb-4" id="sec-hf">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-cloud-download text-primary fs-5"></i>
+                <span>Import from HuggingFace Hub</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Import any compatible dataset directly from HuggingFace Hub without downloading anything manually.</p>
+                <h6 class="fw-semibold mb-2">Steps</h6>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'benchmarks:hf_import' %}"><strong>Benchmarks → Import from HuggingFace</strong></a>.</li>
+                    <li>Enter the <strong>dataset ID</strong> (e.g. <code>cais/mmlu</code>, <code>openai/gsm8k</code>).</li>
+                    <li>Specify the <strong>split</strong> (<code>test</code>, <code>validation</code>, <code>train</code>) and <strong>sample limit</strong>.</li>
+                    <li>Map the dataset columns to the platform fields: <em>question column</em>, <em>answer column</em>, optionally <em>subject column</em>.</li>
+                    <li>Click <strong>Import</strong>. Questions are downloaded and the benchmark is created automatically.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Requires internet access. Large datasets (e.g. MMLU with all subjects) may take a few minutes to download.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── RAG ── -->
+        <div class="card mb-4" id="sec-rag">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-text text-info fs-5"></i>
+                <span>RAG Benchmark</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Evaluate Retrieval-Augmented Generation: each question is accompanied by a context passage that the model can use to answer — simulating real-world document QA.</p>
+                <h6 class="fw-semibold mb-2">CSV format</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Column</th><th>Required</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>context</code></td><td><span class="badge status-completed">Yes</span></td><td>Text passage the model receives as context</td></tr>
+                            <tr><td><code>question</code></td><td><span class="badge status-completed">Yes</span></td><td>Question about the context</td></tr>
+                            <tr><td><code>correct_answer</code></td><td><span class="badge status-completed">Yes</span></td><td>Expected answer (pipe-separated aliases accepted)</td></tr>
+                            <tr><td><code>subject</code></td><td><span class="badge status-pending">No</span></td><td>Topic for per-subject analysis</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ol class="mb-3">
+                    <li>Go to <a href="{% url 'benchmarks:rag' %}"><strong>Benchmarks → RAG Benchmark</strong></a>.</li>
+                    <li>Download the <strong>RAG Example CSV</strong> to see the expected format.</li>
+                    <li>Upload your CSV with context, question, and correct answer columns.</li>
+                    <li>The platform injects the context before each question when running the model.</li>
+                </ol>
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    The <code>correct_answer</code> column supports pipe-separated aliases (e.g. <code>Paris|paris|PARIS</code>) so fuzzy matching handles minor formatting differences.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── CSV Results ── -->
+        <div class="card mb-4" id="sec-csv">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-upload text-warning fs-5"></i>
+                <span>Import CSV Results</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">If you already have model answers in a CSV (generated externally or offline), import them directly to create a run without re-running the model.</p>
+                <h6 class="fw-semibold mb-2">Results CSV format</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Column</th><th>Required</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>question_id</code></td><td><span class="badge status-completed">Yes</span></td><td>Internal question ID (visible in the benchmark Questions page)</td></tr>
+                            <tr><td><code>answer</code></td><td><span class="badge status-completed">Yes</span></td><td>Model's answer text</td></tr>
+                            <tr><td><code>is_correct</code></td><td><span class="badge status-pending">No</span></td><td><code>true</code> / <code>false</code> — recalculated automatically if omitted</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ol class="mb-0">
+                    <li>Go to <a href="{% url 'runs:import_csv' %}"><strong>Runs → Import CSV</strong></a>.</li>
+                    <li>Select the benchmark the questions belong to.</li>
+                    <li>Upload the CSV and confirm. A new run is created with the imported results.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ── API ── -->
+        <div class="card mb-4" id="sec-api">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-code-slash text-info fs-5"></i>
+                <span>REST API</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">All platform data is accessible via a JSON REST API at <code>/api/v1/</code>. Useful for CI/CD integration, scripting, or building custom dashboards.</p>
+                <h6 class="fw-semibold mb-2">Key endpoints</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>/api/v1/benchmarks/</code></td><td><span class="badge bg-primary">GET</span></td><td>List benchmarks (filter: loaded, category)</td></tr>
+                            <tr><td><code>/api/v1/benchmarks/&lt;slug&gt;/questions/</code></td><td><span class="badge bg-primary">GET</span></td><td>Paginated questions for a benchmark</td></tr>
+                            <tr><td><code>/api/v1/runs/</code></td><td><span class="badge bg-primary">GET</span></td><td>List runs (filter: status, benchmark, model, tag)</td></tr>
+                            <tr><td><code>/api/v1/runs/</code></td><td><span class="badge bg-success">POST</span></td><td>Create &amp; start a new run (JSON body)</td></tr>
+                            <tr><td><code>/api/v1/runs/&lt;id&gt;/status/</code></td><td><span class="badge bg-primary">GET</span></td><td>Lightweight polling: status, score, progress</td></tr>
+                            <tr><td><code>/api/v1/runs/&lt;id&gt;/results/</code></td><td><span class="badge bg-primary">GET</span></td><td>Paginated per-question results</td></tr>
+                            <tr><td><code>/api/v1/runs/&lt;id&gt;/cancel/</code></td><td><span class="badge bg-success">POST</span></td><td>Cancel a running or pending run</td></tr>
+                            <tr><td><code>/api/v1/providers/</code></td><td><span class="badge bg-primary">GET</span></td><td>List configured providers</td></tr>
+                            <tr><td><code>/api/v1/leaderboard/</code></td><td><span class="badge bg-primary">GET</span></td><td>Best score per model per benchmark</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted small mb-0">Full documentation with request/response examples is available at <a href="{% url 'api_docs' %}"><strong>API → Documentation</strong></a>.</p>
+            </div>
+        </div>
+
+    </div><!-- /col-lg-9 -->
+</div><!-- /row -->
+
+{% endblock %}

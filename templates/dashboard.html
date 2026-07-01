@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - LLM Benchmark Platform{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0"><i class="bi bi-speedometer me-2 text-primary"></i>Dashboard</h1>
+        <p class="text-muted mb-0">Overview of your LLM benchmarking activity</p>
+    </div>
+    <a href="{% url 'runs:create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>New Run
+    </a>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-primary">{{ total_benchmarks }}</div>
+                <div class="text-muted small mt-1">Total Benchmarks</div>
+                <div class="text-success small">{{ loaded_benchmarks }} loaded</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-info">{{ total_providers }}</div>
+                <div class="text-muted small mt-1">Active Providers</div>
+                <div class="text-muted small">&nbsp;</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold text-warning">{{ total_runs }}</div>
+                <div class="text-muted small mt-1">Total Runs</div>
+                <div class="text-success small">{{ completed_runs }} completed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-5 fw-bold {% if avg_score >= 70 %}text-success{% elif avg_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ avg_score|floatformat:1 }}%
+                </div>
+                <div class="text-muted small mt-1">Avg Score</div>
+                <div class="text-muted small">{{ total_questions_answered }} answers</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-graph-up me-2"></i>Runs over Last 14 Days</div>
+            <div class="card-body">
+                <canvas id="runsOverTimeChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-bar-chart me-2"></i>Top Models by Avg Score</div>
+            <div class="card-body">
+                {% if top_models %}
+                <canvas id="topModelsChart" height="150"></canvas>
+                {% else %}
+                <div class="text-center text-muted py-4">No completed runs yet</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity + Best Scores row -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history me-2"></i>Recent Activity</span>
+                <a href="{% url 'runs:list' %}" class="btn btn-xs btn-outline-secondary">View All</a>
+            </div>
+            {% if recent_runs %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Benchmark</th>
+                            <th>Model</th>
+                            <th>Score</th>
+                            <th>Date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for run in recent_runs %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'benchmarks:detail' run.benchmark.slug %}" class="text-decoration-none small">
+                                    {{ run.benchmark.name|truncatechars:25 }}
+                                </a>
+                            </td>
+                            <td><code class="small">{{ run.model_name|truncatechars:20 }}</code></td>
+                            <td>
+                                <span class="fw-bold {% if run.score >= 70 %}text-success{% elif run.score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ run.score|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td><span class="text-muted small">{{ run.completed_at|date:"M d, H:i" }}</span></td>
+                            <td>
+                                <a href="{% url 'runs:detail' run.pk %}" class="btn btn-xs btn-outline-primary">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-body text-center text-muted py-4">
+                <i class="bi bi-play-circle display-4"></i>
+                <p class="mt-2">No runs yet. <a href="{% url 'runs:create' %}">Start your first run</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-trophy me-2 text-warning"></i>Best Scores</span>
+                <a href="{% url 'benchmarks:leaderboard' %}" class="btn btn-xs btn-outline-secondary">Leaderboard</a>
+            </div>
+            {% if best_scores %}
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Benchmark</th>
+                            <th>Score</th>
+                            <th>Model</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in best_scores %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'benchmarks:detail' entry.benchmark.slug %}" class="text-decoration-none small">
+                                    {{ entry.benchmark.name|truncatechars:20 }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="fw-bold {% if entry.score >= 70 %}text-success{% elif entry.score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ entry.score|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td><code class="small">{{ entry.model_name|truncatechars:15 }}</code></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-body text-center text-muted py-4">No completed runs yet</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Benchmark Coverage -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-grid me-2"></i>Benchmark Coverage
+        <span class="text-muted small ms-2">Green = has completed runs, Gray = not yet evaluated</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            {% for item in benchmark_coverage %}
+            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                <div class="card {% if item.has_runs %}border-success{% else %}border-secondary{% endif %} h-100" style="border-width: 2px !important;">
+                    <div class="card-body p-2 text-center">
+                        <div class="small fw-semibold {% if item.has_runs %}text-success{% else %}text-muted{% endif %} mb-1">
+                            {{ item.name|truncatechars:22 }}
+                        </div>
+                        <span class="badge category-badge-{{ item.category }} mb-1" style="font-size:0.6rem;">{{ item.category }}</span>
+                        {% if item.has_runs %}
+                        <div class="text-success small">
+                            <i class="bi bi-check-circle me-1"></i>{{ item.run_count }} run{{ item.run_count|pluralize }}
+                        </div>
+                        {% if item.best_score is not None %}
+                        <div class="small fw-bold {% if item.best_score >= 70 %}text-success{% elif item.best_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            Best: {{ item.best_score|floatformat:1 }}%
+                        </div>
+                        {% endif %}
+                        {% elif item.is_loaded %}
+                        <div class="text-muted small"><i class="bi bi-question-circle me-1"></i>No runs</div>
+                        {% else %}
+                        <div class="text-warning small"><i class="bi bi-cloud-download me-1"></i>Not loaded</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Runs over time chart
+const runsLabels = [{% for label in runs_by_day_labels %}"{{ label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const runsData = [{% for count in runs_by_day %}{{ count }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+const ctxTime = document.getElementById('runsOverTimeChart').getContext('2d');
+new Chart(ctxTime, {
+    type: 'line',
+    data: {
+        labels: runsLabels,
+        datasets: [{
+            label: 'Runs',
+            data: runsData,
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13,110,253,0.15)',
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: '#0d6efd',
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { color: '#adb5bd', stepSize: 1 },
+                grid: { color: 'rgba(255,255,255,0.07)' },
+            },
+            x: {
+                ticks: { color: '#adb5bd', maxRotation: 45 },
+                grid: { display: false },
+            }
+        }
+    }
+});
+
+{% if top_models %}
+// Top models chart
+const modelLabels = [{% for m in top_models %}"{{ m.model_name|truncatechars:20 }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const modelScores = [{% for m in top_models %}{{ m.avg_score|floatformat:1 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+const ctxModels = document.getElementById('topModelsChart').getContext('2d');
+new Chart(ctxModels, {
+    type: 'bar',
+    data: {
+        labels: modelLabels,
+        datasets: [{
+            label: 'Avg Score %',
+            data: modelScores,
+            backgroundColor: modelScores.map(s =>
+                s >= 70 ? 'rgba(25,135,84,0.7)' :
+                s >= 50 ? 'rgba(255,193,7,0.7)' :
+                'rgba(220,53,69,0.7)'
+            ),
+            borderColor: modelScores.map(s =>
+                s >= 70 ? '#198754' : s >= 50 ? '#ffc107' : '#dc3545'
+            ),
+            borderWidth: 1,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: {
+                beginAtZero: true,
+                max: 100,
+                ticks: { color: '#adb5bd' },
+                grid: { color: 'rgba(255,255,255,0.07)' },
+            },
+            y: {
+                ticks: { color: '#adb5bd' },
+                grid: { display: false },
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

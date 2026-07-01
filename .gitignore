@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Django
+db.sqlite3
+db.sqlite3-shm
+db.sqlite3-wal
+media/
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated docs (can be rebuilt from .md/.py)
+BenchmarkHub_paper.docx
+BenchmarkHub_Supplementary.docx
+
+# Claude Code local settings
+.claude/

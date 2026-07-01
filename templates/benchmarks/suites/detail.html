@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}{{ suite.name }} - Suite - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:suite_list' %}">Suites</a></li>
+        <li class="breadcrumb-item active">{{ suite.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-collection-play me-2 text-primary"></i>{{ suite.name }}</h1>
+        {% if suite.description %}
+        <p class="text-muted mb-0">{{ suite.description }}</p>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <form method="post" action="{% url 'benchmarks:suite_delete' suite.pk %}"
+            onsubmit="return confirm('Delete this suite?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash me-1"></i>Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-header">Benchmarks in Suite</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr><th>#</th><th>Benchmark</th><th>Questions</th><th>Category</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><a href="{% url 'benchmarks:detail' item.benchmark.slug %}">{{ item.benchmark.name }}</a></td>
+                            <td>{{ item.benchmark.num_questions }}</td>
+                            <td><span class="badge bg-secondary">{{ item.benchmark.get_category_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">No benchmarks in this suite.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-play-fill me-2 text-success"></i>Run This Suite</div>
+            <div class="card-body">
+                <form method="post" action="{% url 'benchmarks:run_suite' suite.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Provider <span class="text-danger">*</span></label>
+                        <select name="provider" class="form-select form-select-sm" required>
+                            <option value="">-- Select Provider --</option>
+                            {% for p in providers %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Model <span class="text-danger">*</span></label>
+                        <input type="text" name="model_name" class="form-control form-control-sm" required placeholder="e.g. gpt-4o">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Questions per Benchmark</label>
+                        <input type="number" name="num_questions_per_benchmark" class="form-control form-control-sm" value="0" min="0">
+                        <small class="text-muted">0 = all questions</small>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Temperature</label>
+                            <input type="number" name="temperature" class="form-control form-control-sm" value="0" min="0" max="2" step="0.1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Max Tokens</label>
+                            <input type="number" name="max_tokens" class="form-control form-control-sm" value="512">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">System Prompt</label>
+                        <textarea name="system_prompt" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Parallel Workers</label>
+                        <input type="number" name="parallel_workers" class="form-control form-control-sm" value="1" min="1" max="32">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Worker Mode</label>
+                        <select name="worker_mode" class="form-select form-select-sm">
+                            <option value="shared">Shared — N total API calls across all benchmarks</option>
+                            <option value="per_run">Per benchmark — N workers per benchmark, one at a time</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="bi bi-play-fill me-1"></i>Start Suite Run
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if suite_runs %}
+<div class="card">
+    <div class="card-header">Recent Suite Runs</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr><th>ID</th><th>Model</th><th>Provider</th><th>Status</th><th>Avg Score</th><th>Progress</th><th>Date</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for sr in suite_runs %}
+                <tr>
+                    <td>#{{ sr.pk }}</td>
+                    <td><code>{{ sr.model_name }}</code></td>
+                    <td>{{ sr.provider.name }}</td>
+                    <td>
+                        <span class="badge {% if sr.status == 'completed' %}bg-success{% elif sr.status == 'running' %}bg-primary{% elif sr.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ sr.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ sr.total_score|floatformat:1 }}%</td>
+                    <td>
+                        {% with progress=sr.progress %}
+                        {{ progress.0 }}/{{ progress.1 }}
+                        {% endwith %}
+                    </td>
+                    <td><small class="text-muted">{{ sr.created_at|date:"M d, Y" }}</small></td>
+                    <td>
+                        <a href="{% url 'runs:suite_run_detail' sr.pk %}" class="btn btn-xs btn-outline-primary">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<style>.btn-xs { padding: 0.1rem 0.4rem; font-size: 0.75rem; }</style>
+{% endblock %}

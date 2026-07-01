@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}{% if prompt %}Edit{% else %}New{% endif %} Prompt — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'benchmarks:prompt_list' %}">Prompt Library</a></li>
+      <li class="breadcrumb-item active">{% if prompt %}Edit: {{ prompt.name }}{% else %}New Prompt{% endif %}</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-chat-square-text me-2 text-info"></i>{% if prompt %}Edit Prompt{% else %}New Prompt{% endif %}</h2>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card border-secondary">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ prompt.name|default:'' }}" placeholder="e.g. CoT English, Zero-shot Direct">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <input type="text" name="description" class="form-control"
+                   value="{{ prompt.description|default:'' }}" placeholder="Brief description of when to use this">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Content <span class="text-danger">*</span></label>
+            <textarea name="content" class="form-control font-monospace" rows="10" required
+                      placeholder="You are a helpful assistant. Answer questions concisely and accurately...">{{ prompt.content|default:'' }}</textarea>
+            <div class="form-text">This is used as the system prompt before each question.</div>
+          </div>
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_default" id="is_default"
+                     {% if prompt.is_default %}checked{% endif %}>
+              <label class="form-check-label" for="is_default">Set as default prompt</label>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-circle me-1"></i>{% if prompt %}Update{% else %}Save{% endif %} Prompt
+            </button>
+            <a href="{% url 'benchmarks:prompt_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-secondary">
+      <div class="card-header">
+        <i class="bi bi-info-circle me-2"></i>Available Placeholders
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">These placeholders can be used in your prompt content and will be replaced at runtime:</p>
+        <table class="table table-sm table-borderless">
+          <tbody>
+            <tr><td><code>{question}</code></td><td class="text-muted small">The question text</td></tr>
+            <tr><td><code>{choice_a}</code></td><td class="text-muted small">Option A</td></tr>
+            <tr><td><code>{choice_b}</code></td><td class="text-muted small">Option B</td></tr>
+            <tr><td><code>{choice_c}</code></td><td class="text-muted small">Option C</td></tr>
+            <tr><td><code>{choice_d}</code></td><td class="text-muted small">Option D</td></tr>
+            <tr><td><code>{correct_answer}</code></td><td class="text-muted small">Correct answer (for few-shot)</td></tr>
+          </tbody>
+        </table>
+        <hr>
+        <p class="text-muted small mb-2"><strong>Example prompts:</strong></p>
+        <div class="d-flex flex-column gap-2">
+          <button class="btn btn-sm btn-outline-secondary text-start" onclick="insertTemplate('You are an expert assistant. Answer the following question by selecting the single best answer (A, B, C, or D). Respond with only the letter.')">
+            Zero-shot direct
+          </button>
+          <button class="btn btn-sm btn-outline-secondary text-start" onclick="insertTemplate('You are a careful reasoner. Before answering, think through the problem step by step. Then give your final answer as a single letter (A, B, C, or D).')">
+            Chain-of-thought
+          </button>
+          <button class="btn btn-sm btn-outline-secondary text-start" onclick="insertTemplate('You are a medical expert. Answer the following clinical question by selecting the most appropriate option. Reply with only the letter of your answer.')">
+            Medical domain expert
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function insertTemplate(text) {
+  const ta = document.querySelector('textarea[name="content"]');
+  ta.value = text;
+  ta.focus();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,557 @@
+{% extends 'base.html' %}
+{% block title %}API Documentation — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2><i class="bi bi-code-slash me-2 text-info"></i>REST API Documentation</h2>
+  <p class="text-muted mb-1">Programmatically control benchmarks, runs, and results.</p>
+  <p class="mb-0">
+    Base URL: <code id="baseUrl">{{ request.scheme }}://{{ request.get_host }}/api/v1/</code>
+    <button class="btn btn-xs btn-outline-secondary ms-2" onclick="copyBase()"><i class="bi bi-clipboard"></i></button>
+  </p>
+</div>
+
+<div class="alert alert-secondary small mb-4">
+  <i class="bi bi-info-circle me-2"></i>
+  All endpoints return JSON. <code>POST</code> / <code>DELETE</code> bodies must use <code>Content-Type: application/json</code>.
+  No authentication required on this local deployment.
+  Paginated responses include <code>total</code>, <code>limit</code>, <code>offset</code>, <code>returned</code> fields.
+</div>
+
+<div class="row g-4">
+  <!-- Sidebar nav -->
+  <div class="col-lg-3 d-none d-lg-block">
+    <div class="card border-secondary sticky-top" style="top:80px;">
+      <div class="card-header fw-semibold small">Endpoints</div>
+      <div class="list-group list-group-flush small">
+        <a href="#sec-benchmarks" class="list-group-item list-group-item-action border-0 py-2">
+          <i class="bi bi-collection me-2 text-muted"></i>Benchmarks
+        </a>
+        <a href="#sec-runs" class="list-group-item list-group-item-action border-0 py-2">
+          <i class="bi bi-play-circle me-2 text-muted"></i>Runs
+        </a>
+        <a href="#sec-providers" class="list-group-item list-group-item-action border-0 py-2">
+          <i class="bi bi-cpu me-2 text-muted"></i>Providers
+        </a>
+        <a href="#sec-leaderboard" class="list-group-item list-group-item-action border-0 py-2">
+          <i class="bi bi-trophy me-2 text-muted"></i>Leaderboard
+        </a>
+        <a href="#sec-tryit" class="list-group-item list-group-item-action border-0 py-2 text-info">
+          <i class="bi bi-terminal me-2"></i>Try it live
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-9">
+
+    <!-- BENCHMARKS -->
+    <section id="sec-benchmarks" class="mb-5">
+      <h4 class="border-bottom border-secondary pb-2 mb-3">
+        <i class="bi bi-collection me-2"></i>Benchmarks
+      </h4>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/benchmarks/</code>
+          <span class="text-muted ms-auto small">List benchmarks</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Returns all benchmarks. Filter with <code>loaded=1</code> (only loaded), <code>category=knowledge</code>. Paginated with <code>limit</code> / <code>offset</code>.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl "{{ request.scheme }}://{{ request.get_host }}/api/v1/benchmarks/?loaded=1&amp;limit=20"</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "benchmarks": [
+    {
+      "id": 1,
+      "slug": "mmlu",
+      "name": "MMLU",
+      "description": "Massive Multitask Language Understanding",
+      "category": "knowledge",
+      "num_questions": 14042,
+      "is_loaded": true,
+      "loaded_at": "2024-01-15T10:30:00Z",
+      "metadata": {}
+    }
+  ],
+  "total": 8, "limit": 200, "offset": 0, "returned": 8
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/benchmarks/{slug}/</code>
+          <span class="text-muted ms-auto small">Benchmark detail</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Full benchmark details including all distinct subjects.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl {{ request.scheme }}://{{ request.get_host }}/api/v1/benchmarks/mmlu/</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "id": 1, "slug": "mmlu", "name": "MMLU",
+  "category": "knowledge",
+  "num_questions": 14042, "is_loaded": true,
+  "metadata": {},
+  "subjects": [
+    "abstract_algebra", "anatomy", "astronomy", ...
+  ]
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/benchmarks/{slug}/questions/</code>
+          <span class="text-muted ms-auto small">List questions</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Paginated questions. Filter with <code>subject</code>, <code>difficulty</code>. Includes <code>choices</code> for MCQ and <code>context</code> for RAG benchmarks.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl "{{ request.scheme }}://{{ request.get_host }}/api/v1/benchmarks/mmlu/questions/?subject=anatomy&amp;limit=5"</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "questions": [
+    {
+      "question_id": "0",
+      "question": "What is the powerhouse of the cell?",
+      "subject": "anatomy",
+      "difficulty": "easy",
+      "correct_answer": "A",
+      "choices": {
+        "A": "Mitochondria", "B": "Nucleus",
+        "C": "Ribosome",    "D": "Golgi"
+      }
+    }
+  ],
+  "benchmark": "mmlu",
+  "total": 135, "limit": 100, "offset": 0, "returned": 5
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RUNS -->
+    <section id="sec-runs" class="mb-5">
+      <h4 class="border-bottom border-secondary pb-2 mb-3">
+        <i class="bi bi-play-circle me-2"></i>Runs
+      </h4>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/runs/</code>
+          <span class="text-muted ms-auto small">List runs</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Paginated run list. Filter with <code>status</code> (pending / running / completed / failed / cancelled), <code>benchmark</code> (slug), <code>model</code> (partial), <code>tag</code> (partial).</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl "{{ request.scheme }}://{{ request.get_host }}/api/v1/runs/?status=completed&amp;benchmark=mmlu&amp;limit=10"</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "runs": [
+    {
+      "id": 42, "benchmark": "mmlu",
+      "benchmark_name": "MMLU",
+      "provider": "openai", "provider_name": "OpenAI",
+      "model_name": "gpt-4o", "status": "completed",
+      "score": 87.3, "total_questions": 100,
+      "correct_answers": 87, "progress_pct": 100,
+      "temperature": 0.0, "max_tokens": 512,
+      "tags": "baseline",
+      "created_at": "2024-01-15T10:00:00Z",
+      "completed_at": "2024-01-15T10:12:00Z",
+      "duration_seconds": 720.5
+    }
+  ],
+  "total": 53, "limit": 50, "offset": 0, "returned": 50
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-primary">POST</span>
+          <code>/api/v1/runs/</code>
+          <span class="text-muted ms-auto small">Create &amp; start a run</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Creates a new run and starts it in the background. Returns the run object with <code>status: "pending"</code>.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Request body:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">{
+  "benchmark":        "mmlu",    // slug (required)
+  "provider":         "openai",  // slug (required)
+  "model_name":       "gpt-4o",  // required
+  "num_questions":    100,       // 0 = all
+  "temperature":      0.0,
+  "max_tokens":       512,
+  "system_prompt":    "",
+  "parallel_workers": 4,
+  "few_shot_count":   0,
+  "use_cot":          false,
+  "tags":             "api,automated",
+  "notes":            "Nightly eval",
+  "webhook_url":      ""
+}</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl -X POST \
+  {{ request.scheme }}://{{ request.get_host }}/api/v1/runs/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "benchmark": "mmlu",
+    "provider": "openai",
+    "model_name": "gpt-4o",
+    "num_questions": 50
+  }'</pre>
+              <p class="fw-semibold small mt-3 mb-1">Response (201):</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">{
+  "id": 43, "benchmark": "mmlu",
+  "model_name": "gpt-4o",
+  "status": "pending", "score": 0.0, ...
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/runs/{id}/</code>
+          <span class="text-muted ms-auto small">Run detail</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Full run object. Add <code>?subjects=1</code> to include per-subject accuracy breakdown in a <code>subject_stats</code> field.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl {{ request.scheme }}://{{ request.get_host }}/api/v1/runs/42/?subjects=1</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "id": 42, "benchmark": "mmlu",
+  "model_name": "gpt-4o",
+  "status": "completed", "score": 87.3,
+  "subject_stats": {
+    "anatomy":   {"total": 14, "correct": 13, "pct": 92.9},
+    "astronomy": {"total": 10, "correct": 8,  "pct": 80.0}
+  }
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/runs/{id}/status/</code>
+          <span class="text-muted ms-auto small">Run status (polling)</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Lightweight endpoint for polling run progress. Returns status, score, answered count, and progress percentage.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl {{ request.scheme }}://{{ request.get_host }}/api/v1/runs/42/status/</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">{
+  "id": 42, "status": "running",
+  "score": 71.2, "total_questions": 100,
+  "correct_answers": 51, "answered_count": 71,
+  "progress_pct": 71, "duration_seconds": 35.2,
+  "error_message": null
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-primary">POST</span>
+          <code>/api/v1/runs/{id}/cancel/</code>
+          <span class="text-muted ms-auto small">Cancel a run</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Cancels a pending or running run. Returns 400 if already completed or failed.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl -X POST {{ request.scheme }}://{{ request.get_host }}/api/v1/runs/42/cancel/</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">{"cancelled": true, "id": 42}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/runs/{id}/results/</code>
+          <span class="text-muted ms-auto small">Run results</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Paginated per-question results. Filter with <code>correct=true</code> / <code>false</code>, <code>subject=anatomy</code>.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl "{{ request.scheme }}://{{ request.get_host }}/api/v1/runs/42/results/?correct=false&amp;limit=20"</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "results": [
+    {
+      "id": 1201,
+      "question_id": "mmlu_42",
+      "question": "Which is NOT a type of blood cell?",
+      "subject": "anatomy", "difficulty": "medium",
+      "correct_answer": "C",
+      "model_response": "I think the answer is B...",
+      "parsed_answer": "B", "is_correct": false,
+      "response_time": 0.82,
+      "tokens_input": 124, "tokens_output": 12,
+      "estimated_cost": 0.000041
+    }
+  ],
+  "run_id": 42,
+  "total": 13, "limit": 20, "offset": 0, "returned": 13
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-danger">DELETE</span>
+          <code>/api/v1/runs/{id}/delete/</code>
+          <span class="text-muted ms-auto small">Delete a run</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Permanently deletes the run and all its results. Returns 404 if not found.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl -X DELETE {{ request.scheme }}://{{ request.get_host }}/api/v1/runs/42/delete/</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">{"deleted": true, "id": 42}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROVIDERS -->
+    <section id="sec-providers" class="mb-5">
+      <h4 class="border-bottom border-secondary pb-2 mb-3">
+        <i class="bi bi-cpu me-2"></i>Providers
+      </h4>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/providers/</code>
+          <span class="text-muted ms-auto small">List providers</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Returns all configured LLM providers. Add <code>?active=1</code> to list only active ones.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl {{ request.scheme }}://{{ request.get_host }}/api/v1/providers/?active=1</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "providers": [
+    {
+      "id": 1, "slug": "openai", "name": "OpenAI",
+      "provider_type": "openai", "is_active": true,
+      "default_model": "gpt-4o", "base_url": null
+    },
+    {
+      "id": 2, "slug": "local-ollama",
+      "name": "Local Ollama",
+      "provider_type": "ollama", "is_active": true,
+      "default_model": "llama3.1:8b",
+      "base_url": "http://localhost:11434"
+    }
+  ],
+  "count": 2
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LEADERBOARD -->
+    <section id="sec-leaderboard" class="mb-5">
+      <h4 class="border-bottom border-secondary pb-2 mb-3">
+        <i class="bi bi-trophy me-2"></i>Leaderboard
+      </h4>
+
+      <div class="card border-secondary mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-success">GET</span>
+          <code>/api/v1/leaderboard/</code>
+          <span class="text-muted ms-auto small">Best scores per model</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Best score per (benchmark, model_name) pair, ordered by benchmark then score. Filter with <code>benchmark</code> (slug). Max <code>limit=1000</code>.</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">curl example:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0">curl "{{ request.scheme }}://{{ request.get_host }}/api/v1/leaderboard/?benchmark=mmlu"</pre>
+            </div>
+            <div class="col-md-6">
+              <p class="fw-semibold small mb-1">Example response:</p>
+              <pre class="bg-body-secondary p-3 rounded small mb-0" style="max-height:220px;overflow:auto;">{
+  "leaderboard": [
+    {
+      "benchmark": "mmlu",
+      "benchmark_name": "MMLU",
+      "model_name": "gpt-4o",
+      "provider": "openai",
+      "score": 87.3,
+      "correct_answers": 87,
+      "total_questions": 100,
+      "run_id": 42,
+      "completed_at": "2024-01-15T10:12:00Z"
+    }
+  ],
+  "count": 5
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIVE TESTER -->
+    <section id="sec-tryit" class="mb-5">
+      <h4 class="border-bottom border-secondary pb-2 mb-3">
+        <i class="bi bi-terminal me-2 text-info"></i>Try it live
+      </h4>
+      <div class="card border-info">
+        <div class="card-body">
+          <div class="row g-2 mb-3">
+            <div class="col-auto">
+              <select id="tryMethod" class="form-select form-select-sm border-secondary" onchange="updateTryMethod()">
+                <option>GET</option>
+                <option>POST</option>
+                <option>DELETE</option>
+              </select>
+            </div>
+            <div class="col">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text text-muted">/api/v1/</span>
+                <input type="text" id="tryPath" class="form-control border-secondary font-monospace"
+                       placeholder="benchmarks/" value="benchmarks/">
+              </div>
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-sm btn-info" onclick="sendRequest()">
+                <i class="bi bi-send me-1"></i>Send
+              </button>
+            </div>
+          </div>
+          <div id="tryBodyWrap" style="display:none;" class="mb-3">
+            <label class="form-label small text-muted">Request body (JSON)</label>
+            <textarea id="tryBody" class="form-control form-control-sm font-monospace border-secondary" rows="5"
+                      placeholder='{"benchmark": "mmlu", "provider": "openai", "model_name": "gpt-4o"}'></textarea>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small text-muted" id="tryStatus"></span>
+            <button class="btn btn-xs btn-outline-secondary" onclick="copyResponse()">
+              <i class="bi bi-clipboard me-1"></i>Copy
+            </button>
+          </div>
+          <pre id="tryOutput" class="bg-body-secondary p-3 rounded small mb-0" style="max-height:400px;overflow:auto;">— response will appear here —</pre>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyBase() {
+  navigator.clipboard.writeText(document.getElementById('baseUrl').textContent);
+}
+function updateTryMethod() {
+  const m = document.getElementById('tryMethod').value;
+  document.getElementById('tryBodyWrap').style.display = (m === 'POST') ? '' : 'none';
+}
+async function sendRequest() {
+  const method = document.getElementById('tryMethod').value;
+  const path = document.getElementById('tryPath').value.trim();
+  const url = '/api/v1/' + path;
+  const statusEl = document.getElementById('tryStatus');
+  const outputEl = document.getElementById('tryOutput');
+  statusEl.textContent = 'Sending\u2026';
+  try {
+    const opts = { method };
+    if (method === 'POST') {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = document.getElementById('tryBody').value;
+    }
+    const resp = await fetch(url, opts);
+    const json = await resp.json();
+    statusEl.innerHTML = `<span class="badge ${resp.ok ? 'bg-success' : 'bg-danger'}">${resp.status} ${resp.statusText}</span>`;
+    outputEl.textContent = JSON.stringify(json, null, 2);
+  } catch (e) {
+    statusEl.innerHTML = '<span class="badge bg-danger">Error</span>';
+    outputEl.textContent = String(e);
+  }
+}
+function copyResponse() {
+  navigator.clipboard.writeText(document.getElementById('tryOutput').textContent);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+django>=4.2
+python-dotenv
+requests
+pandas
+openpyxl
+datasets
+openai
+anthropic
+cohere
+mistralai
+google-generativeai
+groq
+together
+django-crispy-forms
+crispy-bootstrap5
+whitenoise

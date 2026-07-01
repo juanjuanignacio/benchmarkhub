@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Create Suite - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:suite_list' %}">Suites</a></li>
+        <li class="breadcrumb-item active">Create Suite</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Create Benchmark Suite</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Suite Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="e.g. Reasoning Suite">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Benchmarks</label>
+                        {% if benchmarks %}
+                        <div class="border border-secondary rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                            {% for b in benchmarks %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="benchmarks"
+                                    value="{{ b.id }}" id="bench_{{ b.id }}">
+                                <label class="form-check-label" for="bench_{{ b.id }}">
+                                    {{ b.name }}
+                                    <small class="text-muted">({{ b.num_questions }} questions)</small>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning">No active benchmarks found. <a href="{% url 'benchmarks:list' %}">Load benchmarks first.</a></div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2 me-1"></i>Create Suite
+                        </button>
+                        <a href="{% url 'benchmarks:suite_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

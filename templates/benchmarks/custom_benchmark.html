@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Custom Benchmark - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'benchmarks:list' %}">Benchmarks</a></li>
+        <li class="breadcrumb-item active">Create Custom Benchmark</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-file-earmark-plus me-2 text-info"></i>Create Custom Benchmark from CSV</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Benchmark Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="e.g. My Custom MCQ Dataset">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Describe your benchmark..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Category</label>
+                        <select name="category" class="form-select">
+                            {% for value, label in categories %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">CSV File <span class="text-danger">*</span></label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <small class="text-muted">Upload your CSV file with questions and answers.</small>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-1"></i>Create Benchmark
+                        </button>
+                        <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i>Expected CSV Format
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">Required columns:</p>
+                <ul class="small mb-2">
+                    <li><code>question</code> - The question text</li>
+                    <li><code>correct_answer</code> - The correct answer (e.g. A, B, C, D or the answer text)</li>
+                </ul>
+                <p class="small text-muted mb-2">Optional columns:</p>
+                <ul class="small mb-2">
+                    <li><code>choice_a</code>, <code>choice_b</code>, <code>choice_c</code>, <code>choice_d</code> - Answer choices</li>
+                    <li><code>subject</code> - Subject category</li>
+                    <li><code>difficulty</code> - Difficulty level</li>
+                </ul>
+                <pre class="p-2 rounded small mb-2"><code>question,choice_a,choice_b,choice_c,choice_d,correct_answer,subject,difficulty
+"What is 2+2?","1","2","3","4","D","Math","easy"
+"Capital of France?","London","Paris","Berlin","Madrid","B","Geography","easy"</code></pre>
+                <a href="{% url 'benchmarks:example_csv' %}" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-download me-1"></i>Download Example CSV
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

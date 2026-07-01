@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Results - Run #{{ run.pk }}{% endblock %}
+{% block nav_runs %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'runs:detail' run.pk %}">Run #{{ run.pk }}</a></li>
+        <li class="breadcrumb-item active">Results</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h4 mb-1">{{ run.benchmark.name }} Results</h2>
+        <p class="text-muted mb-0">
+            <code>{{ run.model_name }}</code> —
+            <span class="{% if run.score >= 70 %}text-success{% elif run.score >= 50 %}text-warning{% else %}text-danger{% endif %} fw-bold">
+                {{ run.score|floatformat:1 }}%
+            </span>
+            ({{ correct_count }}/{{ total_count }})
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <!-- Filter buttons -->
+        <a href="?filter=all" class="btn btn-sm {% if result_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+            All ({{ total_count }})
+        </a>
+        <a href="?filter=correct" class="btn btn-sm {% if result_filter == 'correct' %}btn-success{% else %}btn-outline-success{% endif %}">
+            Correct ({{ correct_count }})
+        </a>
+        <a href="?filter=incorrect" class="btn btn-sm {% if result_filter == 'incorrect' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+            Incorrect ({{ incorrect_count }})
+        </a>
+        <a href="{% url 'runs:export_csv' run.pk %}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </a>
+    </div>
+</div>
+
+{% for result in results %}
+<div class="card mb-3 {% if result.is_correct %}border-success{% elif result.is_correct == False %}border-danger{% endif %}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <span class="text-muted small me-2">Q{{ forloop.counter }}</span>
+            {% if result.is_correct %}
+            <i class="bi bi-check-circle-fill text-success me-1"></i><span class="text-success small">Correct</span>
+            {% elif result.is_correct == False %}
+            <i class="bi bi-x-circle-fill text-danger me-1"></i><span class="text-danger small">Incorrect</span>
+            {% else %}
+            <i class="bi bi-dash-circle text-muted me-1"></i><span class="text-muted small">Unknown</span>
+            {% endif %}
+        </div>
+        <div class="text-muted small">
+            {% if result.question.subject %}<span class="badge bg-secondary me-1">{{ result.question.subject }}</span>{% endif %}
+            {{ result.response_time|floatformat:2 }}s
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Question -->
+        <p class="mb-3"><strong>{{ result.question.question }}</strong></p>
+
+        <!-- Choices -->
+        {% if result.question.choice_a %}
+        <div class="row g-1 mb-3">
+            {% if result.question.choice_a %}
+            <div class="col-md-6">
+                <div class="p-2 rounded border
+                    {% if result.question.correct_answer == 'A' %}border-success bg-success bg-opacity-10
+                    {% elif result.parsed_answer == 'A' and not result.is_correct %}border-danger bg-danger bg-opacity-10
+                    {% else %}border-secondary{% endif %}">
+                    <strong class="text-primary">A)</strong> {{ result.question.choice_a }}
+                    {% if result.question.correct_answer == 'A' %}<i class="bi bi-check-circle-fill text-success ms-1"></i>{% endif %}
+                    {% if result.parsed_answer == 'A' and not result.is_correct %}<i class="bi bi-x-circle-fill text-danger ms-1"></i>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if result.question.choice_b %}
+            <div class="col-md-6">
+                <div class="p-2 rounded border
+                    {% if result.question.correct_answer == 'B' %}border-success bg-success bg-opacity-10
+                    {% elif result.parsed_answer == 'B' and not result.is_correct %}border-danger bg-danger bg-opacity-10
+                    {% else %}border-secondary{% endif %}">
+                    <strong class="text-primary">B)</strong> {{ result.question.choice_b }}
+                    {% if result.question.correct_answer == 'B' %}<i class="bi bi-check-circle-fill text-success ms-1"></i>{% endif %}
+                    {% if result.parsed_answer == 'B' and not result.is_correct %}<i class="bi bi-x-circle-fill text-danger ms-1"></i>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if result.question.choice_c %}
+            <div class="col-md-6">
+                <div class="p-2 rounded border
+                    {% if result.question.correct_answer == 'C' %}border-success bg-success bg-opacity-10
+                    {% elif result.parsed_answer == 'C' and not result.is_correct %}border-danger bg-danger bg-opacity-10
+                    {% else %}border-secondary{% endif %}">
+                    <strong class="text-primary">C)</strong> {{ result.question.choice_c }}
+                    {% if result.question.correct_answer == 'C' %}<i class="bi bi-check-circle-fill text-success ms-1"></i>{% endif %}
+                    {% if result.parsed_answer == 'C' and not result.is_correct %}<i class="bi bi-x-circle-fill text-danger ms-1"></i>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if result.question.choice_d %}
+            <div class="col-md-6">
+                <div class="p-2 rounded border
+                    {% if result.question.correct_answer == 'D' %}border-success bg-success bg-opacity-10
+                    {% elif result.parsed_answer == 'D' and not result.is_correct %}border-danger bg-danger bg-opacity-10
+                    {% else %}border-secondary{% endif %}">
+                    <strong class="text-primary">D)</strong> {{ result.question.choice_d }}
+                    {% if result.question.correct_answer == 'D' %}<i class="bi bi-check-circle-fill text-success ms-1"></i>{% endif %}
+                    {% if result.parsed_answer == 'D' and not result.is_correct %}<i class="bi bi-x-circle-fill text-danger ms-1"></i>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Answer comparison -->
+        <div class="d-flex gap-3">
+            <div>
+                <span class="text-muted small">Correct Answer: </span>
+                <strong class="text-success">{{ result.question.correct_answer }}</strong>
+            </div>
+            <div>
+                <span class="text-muted small">Model Answer: </span>
+                <strong class="{% if result.is_correct %}text-success{% else %}text-danger{% endif %}">
+                    {{ result.parsed_answer|default:"(none)" }}
+                </strong>
+            </div>
+        </div>
+
+        <!-- Model response (collapsible) -->
+        {% if result.model_response %}
+        <div class="mt-2">
+            <button class="btn btn-xs btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                data-bs-target="#resp{{ result.pk }}">
+                <i class="bi bi-chat-text me-1"></i>Full Response
+            </button>
+            <div class="collapse mt-2" id="resp{{ result.pk }}">
+                <pre class="border border-secondary p-2 rounded small text-wrap">{{ result.model_response }}</pre>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if result.error_message %}
+        <div class="alert alert-danger mt-2 small">
+            <strong>Error:</strong> {{ result.error_message }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="text-center py-5">
+    <i class="bi bi-inbox display-1 text-muted"></i>
+    <p class="text-muted mt-2">No results to show.</p>
+</div>
+{% endfor %}
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ result_filter }}">Prev</a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&filter={{ result_filter }}">{{ num }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ result_filter }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

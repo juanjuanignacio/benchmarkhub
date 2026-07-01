@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Compare Runs - LLM Benchmark Platform{% endblock %}
+{% block nav_runs %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0"><i class="bi bi-arrow-left-right me-2 text-primary"></i>Compare Runs</h1>
+        <p class="text-muted mb-0">Side-by-side comparison of completed benchmark runs</p>
+    </div>
+</div>
+
+<!-- Run selection form -->
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-sliders me-2"></i>Select Runs to Compare (up to 4)</div>
+    <div class="card-body">
+        <form method="get" id="compareForm">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label small text-muted mb-1">Completed Runs — grouped by benchmark</label>
+                    <select name="run_select" id="runSelect" class="form-select border-secondary" multiple size="8">
+                        {% regroup all_completed_runs by benchmark.name as benchmark_groups %}
+                        {% for group in benchmark_groups %}
+                        <optgroup label="{{ group.grouper }}">
+                            {% for run in group.list %}
+                            <option value="{{ run.pk }}" {% if run.pk in selected_run_ids %}selected{% endif %}>
+                                #{{ run.pk }} | {{ run.model_name|truncatechars:25 }} | {{ run.score|floatformat:1 }}% | {{ run.created_at|date:"M d" }}
+                            </option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple runs (max 4). Compare runs from the <strong>same benchmark</strong> for subject breakdown.</small>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary d-block w-100 mb-2" onclick="prepareCompare()">
+                        <i class="bi bi-arrow-left-right me-1"></i>Compare Selected
+                    </button>
+                    {% if runs %}
+                    <a href="{% url 'runs:compare' %}" class="btn btn-outline-secondary d-block w-100">
+                        <i class="bi bi-x me-1"></i>Clear
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <input type="hidden" name="runs" id="runsInput" value="{{ runs_param }}">
+        </form>
+    </div>
+</div>
+
+{% if runs %}
+
+{% if different_benchmarks %}
+<div class="alert alert-warning mb-4">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Different benchmarks selected.</strong>
+    The runs below come from different benchmarks — subject breakdown and question-level comparison are only available when all runs share the same benchmark.
+    Overall scores are still shown for reference.
+</div>
+{% endif %}
+
+<!-- Summary cards -->
+<div class="row g-3 mb-4">
+    {% for run in runs %}
+    <div class="col-md-{% if runs|length == 1 %}12{% elif runs|length == 2 %}6{% elif runs|length == 3 %}4{% else %}3{% endif %}">
+        <div class="card h-100" style="border: 2px solid {% if forloop.counter0 == 0 %}#0d6efd{% elif forloop.counter0 == 1 %}#198754{% elif forloop.counter0 == 2 %}#ffc107{% else %}#dc3545{% endif %};">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Run #{{ run.pk }}</span>
+                <span class="badge {% if run.score >= 70 %}bg-success{% elif run.score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6">
+                    {{ run.score|floatformat:1 }}%
+                </span>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-muted">Benchmark</dt>
+                    <dd class="col-7">{{ run.benchmark.name|truncatechars:25 }}</dd>
+                    <dt class="col-5 text-muted">Model</dt>
+                    <dd class="col-7"><code>{{ run.model_name|truncatechars:22 }}</code></dd>
+                    <dt class="col-5 text-muted">Provider</dt>
+                    <dd class="col-7">{{ run.provider.name }}</dd>
+                    <dt class="col-5 text-muted">Correct</dt>
+                    <dd class="col-7">{{ run.correct_answers }}/{{ run.total_questions }}</dd>
+                    <dt class="col-5 text-muted">Date</dt>
+                    <dd class="col-7">{{ run.completed_at|date:"M d, Y"|default:"-" }}</dd>
+                </dl>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'runs:detail' run.pk %}" class="btn btn-xs btn-outline-secondary">
+                    <i class="bi bi-eye me-1"></i>Full Detail
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if subjects and not different_benchmarks %}
+<!-- Score by Subject — bar chart + table -->
+<div class="card mb-4">
+    <div class="card-header fw-semibold"><i class="bi bi-bar-chart-grouped me-2"></i>Score by Subject</div>
+    <div class="card-body">
+        <canvas id="subjectBarChart" style="max-height:420px;"></canvas>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header fw-semibold"><i class="bi bi-table me-2"></i>Subject Breakdown</div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    {% for run in runs %}
+                    <th class="text-center">
+                        <span class="badge" style="background:{% if forloop.counter0 == 0 %}#0d6efd{% elif forloop.counter0 == 1 %}#198754{% elif forloop.counter0 == 2 %}#ffc107{% else %}#dc3545{% endif %};">
+                            #{{ run.pk }}
+                        </span>
+                        <small class="d-block text-muted">{{ run.model_name|truncatechars:16 }}</small>
+                    </th>
+                    {% endfor %}
+                    <th class="text-center">Best</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in subject_rows %}
+                <tr>
+                    <td><small>{{ row.subject|truncatechars:30 }}</small></td>
+                    {% for cell in row.cells %}
+                    <td class="text-center">
+                        {% if cell %}
+                        <span class="fw-bold {% if cell.pct >= 70 %}text-success{% elif cell.pct >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ cell.pct }}%
+                        </span>
+                        <small class="text-muted d-block">{{ cell.correct }}/{{ cell.total }}</small>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="text-center">
+                        {% with best_pct=-1 best_idx=-1 %}
+                        {% for cell in row.cells %}{% if cell and cell.pct > best_pct %}{% with best_pct=cell.pct best_idx=forloop.counter0 %}{% endwith %}{% endif %}{% endfor %}
+                        {% endwith %}
+                        {# show winner badge - computed in JS below #}
+                        <span class="best-badge" data-row="{{ forloop.counter0 }}"></span>
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr class="table-secondary fw-bold">
+                    <td>Overall</td>
+                    {% for run in runs %}
+                    <td class="text-center {% if run.score >= 70 %}text-success{% elif run.score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ run.score|floatformat:1 }}%
+                    </td>
+                    {% endfor %}
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif different_benchmarks and subjects %}
+<!-- Different benchmarks: just show overall bar -->
+<div class="card mb-4">
+    <div class="card-header fw-semibold"><i class="bi bi-bar-chart me-2"></i>Overall Score Comparison</div>
+    <div class="card-body">
+        <canvas id="subjectBarChart" style="max-height:200px;"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- Question-level differences -->
+{% if question_diffs %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center fw-semibold">
+        <span><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Questions Where Runs Disagree</span>
+        <span class="badge bg-warning text-dark">{{ question_diffs|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Question</th>
+                    <th>Correct Answer</th>
+                    {% for run in runs %}
+                    <th class="text-center">
+                        Run #{{ run.pk }}<br>
+                        <small class="text-muted fw-normal">{{ run.model_name|truncatechars:14 }}</small>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for diff in question_diffs %}
+                <tr>
+                    <td>
+                        <small class="text-truncate d-inline-block" style="max-width:280px;" title="{{ diff.question.question }}">
+                            {{ diff.question.question|truncatechars:80 }}
+                        </small>
+                    </td>
+                    <td><strong class="text-success small">{{ diff.question.correct_answer }}</strong></td>
+                    {% for run in runs %}
+                    <td class="text-center">
+                        {% for rid, res in diff.results.items %}{% if rid == run.pk %}
+                        {% if res %}
+                        <span class="{% if res.is_correct %}text-success{% else %}text-danger{% endif %} fw-bold small">
+                            {{ res.parsed_answer }}
+                            {% if res.is_correct %}<i class="bi bi-check-lg"></i>{% else %}<i class="bi bi-x-lg"></i>{% endif %}
+                        </span>
+                        {% else %}<span class="text-muted small">—</span>{% endif %}
+                        {% endif %}{% endfor %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-arrow-left-right display-1 text-muted"></i>
+        <h4 class="mt-3">Select runs to compare</h4>
+        <p class="text-muted">Choose 2–4 completed runs from the selector above.<br>
+        Select runs from the <strong>same benchmark</strong> to see subject-level breakdown.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function prepareCompare() {
+    const select = document.getElementById('runSelect');
+    const selected = [...select.selectedOptions].map(o => o.value).slice(0, 4);
+    document.getElementById('runsInput').value = selected.join(',');
+}
+document.getElementById('compareForm').addEventListener('submit', prepareCompare);
+</script>
+
+{% if runs %}
+<script>
+// Fill in "Best" badges
+const subjectRowData = [
+    {% for row in subject_rows %}
+    [{% for cell in row.cells %}{{ cell.pct|default:"-1" }}{% if not forloop.last %},{% endif %}{% endfor %}],
+    {% endfor %}
+];
+const runColors = ['#0d6efd','#198754','#ffc107','#dc3545'];
+document.querySelectorAll('.best-badge').forEach((el, rowIdx) => {
+    const pcts = subjectRowData[rowIdx];
+    if (!pcts || pcts.every(p => p < 0)) return;
+    let bestIdx = 0, bestVal = -1;
+    pcts.forEach((p, i) => { if (p > bestVal) { bestVal = p; bestIdx = i; } });
+    if (bestVal >= 0) {
+        el.innerHTML = `<span class="badge" style="background:${runColors[bestIdx]};">#${bestIdx + 1}</span>`;
+    }
+});
+</script>
+
+{% if chart_datasets_json %}
+<script>
+const chartSubjects = {{ chart_subjects_json|safe }};
+const chartDatasets = {{ chart_datasets_json|safe }};
+const colors = ['#0d6efd','#198754','#ffc107','#dc3545'];
+chartDatasets.forEach((ds, i) => { ds.backgroundColor = colors[i]; ds.borderRadius = 4; });
+
+{% if subjects and not different_benchmarks %}
+// Grouped bar chart — one group per subject
+new Chart(document.getElementById('subjectBarChart'), {
+    type: 'bar',
+    data: { labels: chartSubjects, datasets: chartDatasets },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { labels: { color: '#adb5bd' } },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
+        },
+        scales: {
+            x: { ticks: { color: '#adb5bd', maxRotation: 45 }, grid: { display: false } },
+            y: { min: 0, max: 100, ticks: { color: '#adb5bd', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+        }
+    }
+});
+{% elif different_benchmarks %}
+// Simple bar for overall scores only
+new Chart(document.getElementById('subjectBarChart'), {
+    type: 'bar',
+    data: {
+        labels: [{% for run in runs %}'Run #{{ run.pk }} — {{ run.model_name|truncatechars:20 }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{ label: 'Overall Score', data: [{% for run in runs %}{{ run.score|floatformat:1 }}{% if not forloop.last %},{% endif %}{% endfor %}], backgroundColor: colors, borderRadius: 6 }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { min: 0, max: 100, ticks: { color: '#adb5bd', callback: v => v + '%' } },
+            x: { ticks: { color: '#adb5bd' } }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endif %}
+{% endif %}
+{% endblock %}

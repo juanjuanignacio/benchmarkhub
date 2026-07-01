@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}Providers - LLM Benchmark Platform{% endblock %}
+{% block nav_providers %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0"><i class="bi bi-cpu me-2 text-primary"></i>Providers</h1>
+        <p class="text-muted mb-0">{{ providers|length }} provider(s) configured</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button id="testAllBtn" class="btn btn-outline-success" onclick="testAllProviders()">
+            <i class="bi bi-wifi me-1"></i>Test All Providers
+        </button>
+        <a href="{% url 'providers:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Add Provider
+        </a>
+    </div>
+</div>
+
+{% if providers %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Default Model</th>
+                <th>Base URL</th>
+                <th>API Key</th>
+                <th>Health</th>
+                <th>Last Tested</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for provider in providers %}
+            {% comment %}Determine health class{% endcomment %}
+            {% with health_class="" %}
+            <tr id="provider-row-{{ provider.pk }}"
+                {% if not provider.is_active %}
+                style="opacity: 0.6;"
+                {% elif provider.last_test %}
+                    {% if provider.last_test.status == 'success' %}
+                    class="provider-healthy"
+                    {% elif provider.last_test.status == 'failed' %}
+                    class="provider-failed"
+                    {% endif %}
+                {% endif %}
+            >
+                <td>
+                    <a href="{% url 'providers:detail' provider.pk %}" class="text-decoration-none fw-semibold">
+                        {{ provider.name }}
+                    </a>
+                    {% if not provider.is_active %}
+                    <span class="badge bg-secondary ms-1">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge provider-type-{{ provider.provider_type }}">
+                        {{ provider.get_provider_type_display }}
+                    </span>
+                </td>
+                <td><code class="small">{{ provider.default_model|default:"-" }}</code></td>
+                <td>
+                    {% if provider.base_url %}
+                    <span class="text-muted small text-truncate d-inline-block" style="max-width: 200px;" title="{{ provider.base_url }}">
+                        {{ provider.base_url }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted small">API</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if provider.api_key %}
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="text-muted small font-monospace" id="apikey-{{ provider.pk }}">••••••••</span>
+                        <button class="btn btn-xs btn-outline-secondary" onclick="toggleApiKey({{ provider.pk }}, '{{ provider.api_key|slice:':4' }}...{{ provider.api_key|slice:'-4:' }}')" title="Show/Hide API key">
+                            <i class="bi bi-eye" id="apikey-icon-{{ provider.pk }}"></i>
+                        </button>
+                    </div>
+                    {% else %}
+                    <span class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i>Not set</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not provider.is_active %}
+                    <span class="badge bg-secondary"><i class="bi bi-dash-circle me-1"></i>Inactive</span>
+                    {% elif provider.last_test %}
+                        {% if provider.last_test.status == 'success' %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>OK</span>
+                        {% elif provider.last_test.status == 'failed' %}
+                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Failed</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pending</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="badge bg-secondary"><i class="bi bi-question-circle me-1"></i>Untested</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if provider.last_test %}
+                    <span class="text-muted small">{{ provider.last_test.tested_at|date:"M d, H:i" }}</span>
+                    {% if provider.last_test.response_time %}
+                    <span class="text-muted small">({{ provider.last_test.response_time|floatformat:2 }}s)</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted small">Never</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                        <button class="btn btn-xs btn-outline-success test-connection-btn"
+                            data-provider-id="{{ provider.pk }}"
+                            data-test-url="{% url 'providers:test' provider.pk %}"
+                            id="test-btn-{{ provider.pk }}"
+                            title="Test Connection">
+                            <i class="bi bi-wifi"></i>
+                        </button>
+                        <button class="btn btn-xs btn-outline-info list-models-btn"
+                            data-provider-id="{{ provider.pk }}"
+                            data-models-url="{% url 'providers:list_models' provider.pk %}"
+                            title="List Models">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <a href="{% url 'providers:update' provider.pk %}" class="btn btn-xs btn-outline-warning" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="post" action="{% url 'providers:delete' provider.pk %}" class="d-inline"
+                            onsubmit="return confirm('Delete provider {{ provider.name }}?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-cpu display-1 text-muted"></i>
+        <h4 class="mt-3">No providers configured</h4>
+        <p class="text-muted">Add your first LLM provider to start benchmarking.</p>
+        <a href="{% url 'providers:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Add Provider
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Test result toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="testResultToast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="bi bi-wifi me-2" id="toastIcon"></i>
+            <strong class="me-auto" id="toastTitle">Test Result</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastBody"></div>
+    </div>
+</div>
+
+<!-- Test All progress modal -->
+<div class="modal fade" id="testAllModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-wifi me-2"></i>Testing All Providers</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="testAllProgress"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" onclick="window.location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Page
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Models modal -->
+<div class="modal fade" id="modelsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-list me-2"></i>Available Models</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modelsLoading" class="text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+                <ul id="modelsList" class="list-group list-group-flush" style="display:none;"></ul>
+                <div id="modelsError" class="alert alert-danger" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.provider-healthy td { border-left: 3px solid #198754; }
+.provider-failed td:first-child { border-left: 3px solid #dc3545; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// API key toggle
+const apiKeyStates = {};
+function toggleApiKey(id, maskedValue) {
+    const el = document.getElementById('apikey-' + id);
+    const icon = document.getElementById('apikey-icon-' + id);
+    if (!apiKeyStates[id]) {
+        el.textContent = maskedValue;
+        icon.className = 'bi bi-eye-slash';
+        apiKeyStates[id] = true;
+    } else {
+        el.textContent = '••••••••';
+        icon.className = 'bi bi-eye';
+        apiKeyStates[id] = false;
+    }
+}
+
+// List models button
+document.querySelectorAll('.list-models-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const url = this.dataset.modelsUrl;
+        const modal = new bootstrap.Modal(document.getElementById('modelsModal'));
+        document.getElementById('modelsLoading').style.display = 'block';
+        document.getElementById('modelsList').style.display = 'none';
+        document.getElementById('modelsError').style.display = 'none';
+        modal.show();
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('modelsLoading').style.display = 'none';
+                if (data.error) {
+                    document.getElementById('modelsError').textContent = data.error;
+                    document.getElementById('modelsError').style.display = 'block';
+                } else {
+                    const list = document.getElementById('modelsList');
+                    list.innerHTML = '';
+                    (data.models || []).forEach(m => {
+                        list.innerHTML += `<li class="list-group-item border-secondary"><code>${m}</code></li>`;
+                    });
+                    if (!data.models || data.models.length === 0) {
+                        list.innerHTML = '<li class="list-group-item text-muted">No models found</li>';
+                    }
+                    list.style.display = 'block';
+                }
+            })
+            .catch(e => {
+                document.getElementById('modelsLoading').style.display = 'none';
+                document.getElementById('modelsError').textContent = 'Error: ' + e.message;
+                document.getElementById('modelsError').style.display = 'block';
+            });
+    });
+});
+
+// Test all providers sequentially
+const providerIds = [{% for provider in providers %}{% if provider.is_active %}{{ provider.pk }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}];
+
+async function testAllProviders() {
+    const modal = new bootstrap.Modal(document.getElementById('testAllModal'));
+    modal.show();
+    const progressDiv = document.getElementById('testAllProgress');
+    progressDiv.innerHTML = '<p class="text-muted">Testing providers sequentially...</p>';
+
+    let results = [];
+    for (let i = 0; i < providerIds.length; i++) {
+        const id = providerIds[i];
+        const btn = document.getElementById('test-btn-' + id);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        }
+        progressDiv.innerHTML += `<div id="test-result-${id}" class="d-flex align-items-center gap-2 mb-2">
+            <span class="spinner-border spinner-border-sm text-primary"></span>
+            <span class="text-muted">Testing provider #${id}...</span>
+        </div>`;
+
+        try {
+            const resp = await fetch(`/providers/${id}/test/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+            const resultEl = document.getElementById('test-result-' + id);
+            if (data.success) {
+                resultEl.innerHTML = `<i class="bi bi-check-circle-fill text-success"></i> <span class="text-success">Provider #${id}: OK (${(data.response_time || 0).toFixed(2)}s)</span>`;
+                results.push({ id, success: true });
+            } else {
+                resultEl.innerHTML = `<i class="bi bi-x-circle-fill text-danger"></i> <span class="text-danger">Provider #${id}: Failed - ${data.error || 'Unknown'}</span>`;
+                results.push({ id, success: false });
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-wifi"></i>';
+            }
+        } catch (e) {
+            const resultEl = document.getElementById('test-result-' + id);
+            resultEl.innerHTML = `<i class="bi bi-x-circle-fill text-danger"></i> <span class="text-danger">Provider #${id}: Error - ${e.message}</span>`;
+            results.push({ id, success: false });
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-wifi"></i>';
+            }
+        }
+    }
+
+    const passed = results.filter(r => r.success).length;
+    const failed = results.length - passed;
+    progressDiv.innerHTML += `<hr class="border-secondary"><div class="fw-semibold">
+        <span class="text-success">${passed} passed</span> &bull;
+        <span class="text-danger">${failed} failed</span>
+        out of ${results.length} providers tested.
+    </div>`;
+}
+
+function getCsrfToken() {
+    return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+</script>
+{% endblock %}

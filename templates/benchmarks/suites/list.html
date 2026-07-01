@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Benchmark Suites - LLM Benchmark Platform{% endblock %}
+{% block nav_benchmarks %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-collection-play me-2 text-primary"></i>Benchmark Suites</h1>
+        <p class="text-muted mb-0">Group benchmarks and run them together</p>
+    </div>
+    <a href="{% url 'benchmarks:suite_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>New Suite
+    </a>
+</div>
+
+{% if suites %}
+<div class="row g-3">
+    {% for suite in suites %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ suite.name }}</h5>
+                {% if suite.description %}
+                <p class="card-text text-muted small">{{ suite.description|truncatechars:100 }}</p>
+                {% endif %}
+                <div class="d-flex gap-2 flex-wrap mb-2">
+                    {% for item in suite.items.all %}
+                    <span class="badge bg-secondary">{{ item.benchmark.name|truncatechars:20 }}</span>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">{{ suite.items.count }} benchmark{{ suite.items.count|pluralize }}</small>
+            </div>
+            <div class="card-footer d-flex gap-2">
+                <a href="{% url 'benchmarks:suite_detail' suite.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i>View
+                </a>
+                <form method="post" action="{% url 'benchmarks:suite_delete' suite.pk %}"
+                    onsubmit="return confirm('Delete suite {{ suite.name }}?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-collection-play display-4 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">No Suites Yet</h5>
+        <p class="text-muted">Create a suite to run multiple benchmarks together.</p>
+        <a href="{% url 'benchmarks:suite_create' %}" class="btn btn-primary">Create Suite</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

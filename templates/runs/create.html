@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title %}New Run - LLM Benchmark Platform{% endblock %}
+{% block nav_runs %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+        <li class="breadcrumb-item active">New Run</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4 class="mb-0"><i class="bi bi-play-fill me-2 text-primary"></i>New Benchmark Run</h4>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#templateModal">
+                        <i class="bi bi-bookmark-star me-1"></i>Load Template
+                    </button>
+                </div>
+                <ul class="nav nav-tabs card-header-tabs" id="runModeTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="tab-api" href="#" onclick="switchTab('api');return false;">
+                            <i class="bi bi-cpu me-1"></i>Run via API
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-csv" href="#" onclick="switchTab('csv');return false;">
+                            <i class="bi bi-upload me-1"></i>Import from CSV
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <!-- CSV Import pane -->
+                <div id="pane-csv" style="display:none;">
+                    <p class="text-muted">
+                        Select a benchmark, download its questions, run them through your system, then upload the answers for automatic evaluation.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+                        <select id="csvBenchmarkSelect" class="form-select border-secondary">
+                            <option value="">-- Select Benchmark --</option>
+                            {% for b in benchmarks %}
+                            <option value="{{ b.slug }}" data-import-url="{% url 'benchmarks:import_answers' b.slug %}" data-export-url="{% url 'benchmarks:export_csv' b.slug %}">
+                                {{ b.name }} ({{ b.num_questions }} questions)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-success" onclick="csvDownload()" id="csvDownloadBtn" disabled>
+                            <i class="bi bi-download me-1"></i>Download Questions CSV
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="csvImport()" id="csvImportBtn" disabled>
+                            <i class="bi bi-upload me-1"></i>Go to Import &amp; Evaluate
+                        </button>
+                    </div>
+                    <div class="mt-3 text-muted small">
+                        <ol class="ps-3 mb-0">
+                            <li class="mb-1">Download the questions CSV for your benchmark.</li>
+                            <li class="mb-1">Run each question through your RAG system or model.</li>
+                            <li class="mb-1">Add an <code>answer</code> column with your system's responses.</li>
+                            <li>Upload the CSV — scores are computed automatically.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- API Run pane -->
+                <div id="pane-api">
+                <form method="post" id="runForm">
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        <!-- Benchmark -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+                            <select name="benchmark" id="benchmarkSelect" class="form-select border-secondary" required>
+                                <option value="">-- Select Benchmark --</option>
+                                {% for b in benchmarks %}
+                                <option value="{{ b.id }}" data-questions="{{ b.num_questions }}">
+                                    {{ b.name }} ({{ b.num_questions }} questions)
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if not benchmarks %}
+                            <small class="text-warning">
+                                No benchmarks loaded.
+                                <a href="{% url 'benchmarks:list' %}">Load a benchmark first</a>
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Provider -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+                            <select name="provider" id="providerSelect" class="form-select border-secondary" required
+                                onchange="loadModelsForProvider()">
+                                <option value="">-- Select Provider --</option>
+                                {% for p in providers %}
+                                <option value="{{ p.id }}"
+                                    data-models-url="{% url 'providers:list_models' p.pk %}"
+                                    data-default-model="{{ p.default_model }}">
+                                    {{ p.name }} ({{ p.get_provider_type_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if not providers %}
+                            <small class="text-warning">
+                                No providers configured.
+                                <a href="{% url 'providers:create' %}">Add a provider</a>
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Model -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Model <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-2">
+                                <input type="text" name="model_name" id="modelInput"
+                                    class="form-control border-secondary"
+                                    placeholder="e.g. gpt-4o, llama3" required>
+                                <button type="button" class="btn btn-outline-secondary" onclick="loadModelsForProvider()" title="Load models">
+                                    <i class="bi bi-arrow-clockwise" id="loadModelsIcon"></i>
+                                </button>
+                            </div>
+                            <div id="modelSuggestions" class="mt-1"></div>
+                        </div>
+
+                        <!-- Num questions -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Number of Questions</label>
+                            <input type="number" name="num_questions" id="numQuestions"
+                                class="form-control border-secondary"
+                                value="0" min="0" placeholder="0 = all">
+                            <small class="text-muted">
+                                0 = run all questions.
+                                <span id="maxQuestionsHint"></span>
+                            </small>
+                        </div>
+
+                        <!-- Temperature -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Temperature</label>
+                            <input type="number" name="temperature" class="form-control border-secondary"
+                                value="0" min="0" max="2" step="0.1">
+                            <small class="text-muted">0 = deterministic, 1 = creative</small>
+                        </div>
+
+                        <!-- Max tokens -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Max Tokens</label>
+                            <input type="number" name="max_tokens" class="form-control border-secondary"
+                                value="512" min="1" max="8192">
+                        </div>
+
+                        <!-- System prompt -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">System Prompt <span class="text-muted fw-normal">(optional)</span></label>
+                            <textarea name="system_prompt" class="form-control border-secondary"
+                                rows="3" placeholder="You are a helpful assistant answering multiple choice questions. Answer with only the letter of the correct option."></textarea>
+                            <small class="text-muted">Leave blank to use the benchmark's default prompt format.</small>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
+                            <textarea name="notes" class="form-control border-secondary"
+                                rows="2" placeholder="Add any notes about this run, e.g. experiment description, hypothesis..."></textarea>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Tags <span class="text-muted fw-normal">(optional)</span></label>
+                            <input type="text" name="tags" class="form-control border-secondary"
+                                placeholder="e.g. baseline, v1, experiment, no-system-prompt">
+                            <small class="text-muted">Comma-separated tags for filtering runs later.</small>
+                        </div>
+                    </div>
+
+                    <!-- Preview -->
+                    <div id="runPreview" class="alert alert-secondary mt-3" style="display:none;">
+                        <strong>Run Preview:</strong>
+                        <span id="previewText"></span>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="bi bi-play-fill me-1"></i>Start Run
+                        </button>
+                        <a href="{% url 'runs:list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+                </div><!-- /pane-api -->
+            </div>
+        </div>
+
+        <!-- Quick tips -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="text-muted"><i class="bi bi-lightbulb me-1"></i>Tips</h6>
+                <ul class="small text-muted mb-0">
+                    <li>For quick testing, set number of questions to 50-100</li>
+                    <li>Temperature 0 gives the most consistent, deterministic answers</li>
+                    <li>The run will execute in the background - you can monitor progress on the detail page</li>
+                    <li>For MCQ benchmarks, a short system prompt like "Answer with only A, B, C, or D." improves accuracy</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Template modal -->
+<div class="modal fade" id="templateModal" tabindex="-1" aria-labelledby="templateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="templateModalLabel"><i class="bi bi-bookmark-star me-2"></i>Load Run Template</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="templateModalBody">
+        <p class="text-muted">Loading templates…</p>
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'runs:template_create' %}" class="btn btn-outline-primary btn-sm me-auto">
+          <i class="bi bi-plus-lg me-1"></i>New Template
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Tab switching
+function switchTab(mode) {
+    document.getElementById('pane-api').style.display = mode === 'api' ? '' : 'none';
+    document.getElementById('pane-csv').style.display = mode === 'csv' ? '' : 'none';
+    document.getElementById('tab-api').classList.toggle('active', mode === 'api');
+    document.getElementById('tab-csv').classList.toggle('active', mode === 'csv');
+}
+
+// CSV import helpers
+document.getElementById('csvBenchmarkSelect')?.addEventListener('change', function() {
+    const hasVal = !!this.value;
+    document.getElementById('csvDownloadBtn').disabled = !hasVal;
+    document.getElementById('csvImportBtn').disabled = !hasVal;
+});
+function getSelectedCsvBenchmark() {
+    const sel = document.getElementById('csvBenchmarkSelect');
+    return sel.options[sel.selectedIndex];
+}
+function csvDownload() {
+    const opt = getSelectedCsvBenchmark();
+    if (opt && opt.dataset.exportUrl) window.location.href = opt.dataset.exportUrl;
+}
+function csvImport() {
+    const opt = getSelectedCsvBenchmark();
+    if (opt && opt.dataset.importUrl) window.location.href = opt.dataset.importUrl;
+}
+
+window.__templates__ = {{ run_templates|safe }};
+const _tplCreateUrl = "{% url 'runs:template_create' %}";
+const _tplApplyBase = "/runs/templates/";
+
+// Load template modal content when opened
+document.getElementById('templateModal')?.addEventListener('show.bs.modal', function() {
+  buildTemplateModal();
+});
+
+async function buildTemplateModal() {
+  const body = document.getElementById('templateModalBody');
+  const tplData = window.__templates__ || [];
+  if (tplData.length === 0) {
+    body.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-bookmark-x display-5 d-block mb-2"></i>No templates saved yet. <a href="' + _tplCreateUrl + '">Create one</a>.</div>';
+    return;
+  }
+  let html = '<div class="list-group">';
+  tplData.forEach(t => {
+    html += `<button type="button" class="list-group-item list-group-item-action" onclick="applyTemplate(${t.pk})">
+      <div class="d-flex justify-content-between">
+        <div class="fw-semibold">${t.name}</div>
+        <code class="small">${t.model_name}</code>
+      </div>
+      ${t.description ? `<div class="text-muted small">${t.description}</div>` : ''}
+      <div class="text-muted small mt-1">temp ${t.temperature} &middot; ${t.max_tokens} tokens${t.num_questions ? ' &middot; ' + t.num_questions + 'q' : ''}</div>
+    </button>`;
+  });
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+async function applyTemplate(pk) {
+  try {
+    const resp = await fetch(`/runs/templates/${pk}/apply/`);
+    const data = await resp.json();
+    if (data.model_name) document.getElementById('modelInput').value = data.model_name;
+    const tempInput = document.querySelector('[name=temperature]');
+    if (tempInput) tempInput.value = data.temperature;
+    const maxTok = document.querySelector('[name=max_tokens]');
+    if (maxTok) maxTok.value = data.max_tokens;
+    const sysPrompt = document.querySelector('[name=system_prompt]');
+    if (sysPrompt) sysPrompt.value = data.system_prompt || '';
+    const numQ = document.getElementById('numQuestions');
+    if (numQ) numQ.value = data.num_questions || '';
+    const pw = document.querySelector('[name=parallel_workers]');
+    if (pw) pw.value = data.parallel_workers || 1;
+    const fs = document.querySelector('[name=few_shot_count]');
+    if (fs) fs.value = data.few_shot_count || 0;
+    const cot = document.querySelector('[name=use_cot]');
+    if (cot) cot.checked = data.use_cot || false;
+    bootstrap.Modal.getInstance(document.getElementById('templateModal'))?.hide();
+    showToast('Template applied.', 'success');
+  } catch(e) {
+    showToast('Failed to load template.', 'danger');
+  }
+}
+
+function loadModelsForProvider() {
+    const sel = document.getElementById('providerSelect');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+
+    const modelsUrl = opt.dataset.modelsUrl;
+    const defaultModel = opt.dataset.defaultModel;
+    const modelInput = document.getElementById('modelInput');
+    const suggestionsDiv = document.getElementById('modelSuggestions');
+    const icon = document.getElementById('loadModelsIcon');
+
+    if (defaultModel && !modelInput.value) {
+        modelInput.value = defaultModel;
+    }
+
+    if (!modelsUrl) return;
+    icon.className = 'bi bi-arrow-clockwise spin';
+
+    fetch(modelsUrl)
+        .then(r => r.json())
+        .then(data => {
+            icon.className = 'bi bi-arrow-clockwise';
+            if (data.models && data.models.length > 0) {
+                suggestionsDiv.innerHTML = '<div class="d-flex flex-wrap gap-1 mt-1">' +
+                    data.models.slice(0, 10).map(m =>
+                        `<button type="button" class="btn btn-xs btn-outline-secondary" onclick="document.getElementById('modelInput').value='${m}'">${m}</button>`
+                    ).join('') + '</div>';
+            }
+        })
+        .catch(() => { icon.className = 'bi bi-arrow-clockwise'; });
+}
+
+document.getElementById('benchmarkSelect')?.addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const numQ = opt.dataset.questions;
+    const hint = document.getElementById('maxQuestionsHint');
+    if (numQ) hint.textContent = `(max: ${numQ})`;
+    updatePreview();
+});
+
+document.getElementById('providerSelect')?.addEventListener('change', updatePreview);
+document.getElementById('modelInput')?.addEventListener('input', updatePreview);
+
+function updatePreview() {
+    const bSel = document.getElementById('benchmarkSelect');
+    const pSel = document.getElementById('providerSelect');
+    const model = document.getElementById('modelInput').value;
+    const numQ = document.getElementById('numQuestions').value;
+    const preview = document.getElementById('runPreview');
+    const text = document.getElementById('previewText');
+
+    const bName = bSel.options[bSel.selectedIndex]?.text;
+    const pName = pSel.options[pSel.selectedIndex]?.text;
+
+    if (bName && pName && model) {
+        text.textContent = ` ${bName} with ${model} via ${pName} (${numQ == 0 ? 'all' : numQ} questions)`;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+document.getElementById('runForm')?.addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
+});
+</script>
+<style>
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.btn-xs { padding: 0.1rem 0.4rem; font-size: 0.75rem; }
+</style>
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}A/B Results {{ ab_test_id }} — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'runs:ab_test' %}">A/B Testing</a></li>
+      <li class="breadcrumb-item active">Test {{ ab_test_id }}</li>
+    </ol>
+  </nav>
+  <div class="d-flex justify-content-between align-items-center">
+    <h2><i class="bi bi-split me-2 text-warning"></i>A/B Test Results <small class="text-muted fs-5">{{ ab_test_id }}</small></h2>
+    <a href="{% url 'runs:ab_test' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-plus me-1"></i>New A/B Test
+    </a>
+  </div>
+</div>
+
+<!-- Statistical significance badge -->
+{% if run_a and run_b and run_a.status == 'completed' and run_b.status == 'completed' %}
+<div class="alert {% if significant %}alert-success{% else %}alert-secondary{% endif %} mb-4">
+  <i class="bi {% if significant %}bi-check-circle-fill{% else %}bi-info-circle{% endif %} me-2"></i>
+  <strong>McNemar's Test:</strong>
+  χ² = {{ chi2 }}, p = {{ p_value }} —
+  {% if significant %}
+  <strong>Statistically significant difference</strong> (p &lt; 0.05). The prompts perform differently.
+  {% else %}
+  <strong>No significant difference</strong> (p ≥ 0.05). Results may be due to chance.
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card border-primary h-100">
+      <div class="card-header bg-primary bg-opacity-10 text-primary fw-semibold">
+        <i class="bi bi-a-circle me-2"></i>
+        {{ run_a.metadata.ab_name|default:"Variant A" }}
+        {% if run_a %}<a href="{% url 'runs:detail' run_a.pk %}" class="btn btn-sm btn-outline-primary float-end">View Run #{{ run_a.pk }}</a>{% endif %}
+      </div>
+      <div class="card-body text-center">
+        {% if run_a %}
+          {% if run_a.status == 'completed' %}
+          <div class="display-4 fw-bold text-primary">{{ run_a.score|floatformat:1 }}%</div>
+          <div class="text-muted">{{ run_a.correct_answers }}/{{ run_a.total_questions }} correct</div>
+          {% elif run_a.status == 'running' %}
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="text-muted mt-2">Running… {{ run_a.progress_pct }}%</div>
+          {% else %}
+          <span class="badge bg-{{ run_a.status|yesno:'success,danger,warning,secondary' }} fs-6">{{ run_a.status|capfirst }}</span>
+          {% endif %}
+          <div class="text-muted small mt-2">{{ run_a.system_prompt|truncatechars:100|default:"No system prompt" }}</div>
+        {% else %}
+          <span class="text-muted">No data</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-warning h-100">
+      <div class="card-header bg-warning bg-opacity-10 text-warning fw-semibold">
+        <i class="bi bi-b-circle me-2"></i>
+        {{ run_b.metadata.ab_name|default:"Variant B" }}
+        {% if run_b %}<a href="{% url 'runs:detail' run_b.pk %}" class="btn btn-sm btn-outline-warning float-end">View Run #{{ run_b.pk }}</a>{% endif %}
+      </div>
+      <div class="card-body text-center">
+        {% if run_b %}
+          {% if run_b.status == 'completed' %}
+          <div class="display-4 fw-bold text-warning">{{ run_b.score|floatformat:1 }}%</div>
+          <div class="text-muted">{{ run_b.correct_answers }}/{{ run_b.total_questions }} correct</div>
+          {% elif run_b.status == 'running' %}
+          <div class="spinner-border text-warning" role="status"></div>
+          <div class="text-muted mt-2">Running… {{ run_b.progress_pct }}%</div>
+          {% else %}
+          <span class="badge fs-6">{{ run_b.status|capfirst }}</span>
+          {% endif %}
+          <div class="text-muted small mt-2">{{ run_b.system_prompt|truncatechars:100|default:"No system prompt" }}</div>
+        {% else %}
+          <span class="text-muted">No data</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Per-subject comparison -->
+{% if all_subjects %}
+<div class="card border-secondary mb-4">
+  <div class="card-header fw-semibold"><i class="bi bi-bar-chart me-2"></i>Score by Subject</div>
+  <div class="card-body">
+    <canvas id="subjectChart" height="80"></canvas>
+  </div>
+</div>
+
+<div class="card border-secondary mb-4">
+  <div class="card-header fw-semibold"><i class="bi bi-table me-2"></i>Subject Breakdown</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th class="text-primary">A: {{ run_a.metadata.ab_name|default:"Variant A" }}</th>
+          <th class="text-warning">B: {{ run_b.metadata.ab_name|default:"Variant B" }}</th>
+          <th>Winner</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for subj in all_subjects %}
+        <tr>
+          <td>{{ subj }}</td>
+          <td class="text-primary">
+            {% for k,v in subject_data_a.items %}{% if k == subj %}{{ v.pct }}% <small class="text-muted">({{ v.correct }}/{{ v.total }})</small>{% endif %}{% endfor %}
+          </td>
+          <td>{% for k,v in subject_data_b.items %}{% if k == subj %}{{ v.pct }}% <small class="text-muted">({{ v.correct }}/{{ v.total }})</small>{% endif %}{% endfor %}</td>
+          <td>
+            {% for ka,va in subject_data_a.items %}{% if ka == subj %}
+              {% for kb,vb in subject_data_b.items %}{% if kb == subj %}
+                {% if va.pct > vb.pct %}<span class="badge bg-primary">A</span>
+                {% elif vb.pct > va.pct %}<span class="badge bg-warning text-dark">B</span>
+                {% else %}<span class="badge bg-secondary">Tie</span>{% endif %}
+              {% endif %}{% endfor %}
+            {% endif %}{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Question-level differences -->
+{% if question_diffs %}
+<div class="card border-secondary mb-4">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-shuffle me-2"></i>Questions Where Variants Disagree
+    <span class="badge bg-secondary ms-2">{{ question_diffs|length }}</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Correct</th>
+            <th class="text-primary">A Answer</th>
+            <th class="text-warning">B Answer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for diff in question_diffs %}
+          <tr>
+            <td style="max-width:300px"><small>{{ diff.question.question|truncatechars:80 }}</small></td>
+            <td><span class="badge bg-success">{{ diff.question.correct_answer }}</span></td>
+            <td>
+              <span class="badge {% if diff.result_a.is_correct %}bg-success{% else %}bg-danger{% endif %}">
+                {{ diff.result_a.parsed_answer|default:"—" }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {% if diff.result_b.is_correct %}bg-success{% else %}bg-danger{% endif %}">
+                {{ diff.result_b.parsed_answer|default:"—" }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if run_a and run_b and run_a.status == 'running' or run_b.status == 'running' %}
+<div id="refreshNote" class="alert alert-info">
+  <i class="bi bi-arrow-repeat me-2"></i>Runs in progress — page will refresh automatically.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if all_subjects %}
+const labels = [{% for s in all_subjects %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const dataA = [{% for s in all_subjects %}{% for k,v in subject_data_a.items %}{% if k == s %}{{ v.pct }}{% endif %}{% endfor %}{% if not forloop.last %},{% endif %}{% endfor %}];
+const dataB = [{% for s in all_subjects %}{% for k,v in subject_data_b.items %}{% if k == s %}{{ v.pct }}{% endif %}{% endfor %}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+new Chart(document.getElementById('subjectChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: '{{ run_a.metadata.ab_name|default:"Variant A" }}', data: dataA, backgroundColor: 'rgba(13,110,253,0.7)', borderColor: 'rgba(13,110,253,1)', borderWidth: 1 },
+      { label: '{{ run_b.metadata.ab_name|default:"Variant B" }}', data: dataB, backgroundColor: 'rgba(255,193,7,0.7)', borderColor: 'rgba(255,193,7,1)', borderWidth: 1 },
+    ]
+  },
+  options: { responsive: true, scales: { y: { min: 0, max: 100, ticks: { callback: v => v+'%' } } } }
+});
+{% endif %}
+
+// Auto-refresh if any run is still running
+{% if run_a and run_b %}
+const statuses = ['{{ run_a.status }}', '{{ run_b.status }}'];
+if (statuses.includes('running') || statuses.includes('pending')) {
+  setTimeout(() => location.reload(), 5000);
+}
+{% endif %}
+</script>
+{% endblock %}

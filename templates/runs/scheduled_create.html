@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Schedule Run — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'runs:scheduled_list' %}">Scheduled Runs</a></li>
+      <li class="breadcrumb-item active">New Scheduled Run</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-calendar-plus me-2 text-success"></i>Schedule a Run</h2>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card border-secondary">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g. Nightly MMLU check">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Benchmark <span class="text-danger">*</span></label>
+              <select name="benchmark" class="form-select" required>
+                <option value="">Select…</option>
+                {% for b in benchmarks %}
+                <option value="{{ b.pk }}">{{ b.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+              <select name="provider" class="form-select" required>
+                <option value="">Select…</option>
+                {% for p in providers %}
+                <option value="{{ p.pk }}">{{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Model Name <span class="text-danger">*</span></label>
+              <input type="text" name="model_name" class="form-control" required placeholder="e.g. gpt-4o">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Questions (0 = all)</label>
+              <input type="number" name="num_questions" class="form-control" value="100" min="0">
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Run At <span class="text-danger">*</span></label>
+              <input type="datetime-local" name="run_at" class="form-control" required>
+              <div class="form-text">UTC time</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Frequency</label>
+              <select name="frequency" class="form-select">
+                <option value="once">Once only</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Temperature</label>
+              <input type="number" name="temperature" class="form-control" value="0" step="0.1" min="0" max="2">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Max Tokens</label>
+              <input type="number" name="max_tokens" class="form-control" value="512">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">System Prompt</label>
+            <textarea name="system_prompt" class="form-control" rows="3" placeholder="Optional…"></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-calendar-check me-1"></i>Schedule Run
+            </button>
+            <a href="{% url 'runs:scheduled_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-secondary">
+      <div class="card-header"><i class="bi bi-info-circle me-2"></i>How Scheduling Works</div>
+      <div class="card-body small text-muted">
+        <ul class="ps-3">
+          <li class="mb-2">The background scheduler checks for due runs every minute</li>
+          <li class="mb-2">When a run's time arrives, it starts automatically</li>
+          <li class="mb-2">For <strong>Daily</strong> or <strong>Weekly</strong> runs, the next execution is scheduled automatically after each run</li>
+          <li class="mb-2">You can pause/resume or delete scheduled runs at any time</li>
+          <li>Results appear in the main Runs list</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

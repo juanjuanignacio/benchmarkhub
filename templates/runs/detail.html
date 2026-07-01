@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% block title %}Run #{{ run.pk }} - {{ run.benchmark.name }}{% endblock %}
+{% block nav_runs %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+        {% if run.suite_run %}
+        <li class="breadcrumb-item">
+            <a href="{% url 'runs:suite_run_detail' run.suite_run.pk %}">
+                <i class="bi bi-collection me-1"></i>Suite: {{ run.suite_run.suite.name }}
+            </a>
+        </li>
+        {% endif %}
+        {% if run.metadata.ab_test_id %}
+        <li class="breadcrumb-item">
+            <a href="{% url 'runs:ab_results' run.metadata.ab_test_id %}">
+                <i class="bi bi-bar-chart-steps me-1"></i>A/B Test {{ run.metadata.ab_test_id }}
+            </a>
+        </li>
+        {% endif %}
+        <li class="breadcrumb-item active">Run #{{ run.pk }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-1">{{ run.benchmark.name }}</h1>
+        <p class="text-muted mb-0">
+            <code>{{ run.model_name }}</code> via {{ run.provider.name }}
+        </p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge status-{{ run.status }} fs-6" id="statusBadge">{{ run.get_status_display }}</span>
+        {% if run.status == 'running' %}
+        <form method="post" action="{% url 'runs:cancel' run.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-warning">
+                <i class="bi bi-stop-circle me-1"></i>Cancel
+            </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'runs:export_csv' run.pk %}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-filetype-csv me-1"></i>Export CSV
+        </a>
+        <a href="{% url 'runs:export_excel' run.pk %}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export Excel
+        </a>
+        <a href="{% url 'runs:template_create' %}?from_run={{ run.pk }}"
+           class="btn btn-sm btn-outline-primary" title="Save this run's config as a template">
+            <i class="bi bi-bookmark-plus me-1"></i>Save as Template
+        </a>
+        <form method="post" action="{% url 'runs:delete' run.pk %}"
+            onsubmit="return confirm('Delete this run and all results?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash me-1"></i>Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Score & Progress -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="score-display {% if run.score >= 70 %}text-success{% elif run.score >= 50 %}text-warning{% else %}text-danger{% endif %}" id="scoreDisplay">
+                    {{ run.score|floatformat:1 }}%
+                </div>
+                {% if ci_low is not None %}
+                <div class="text-muted" style="font-size:0.72rem;">95% CI: {{ ci_low }}–{{ ci_high }}%</div>
+                {% endif %}
+                <div class="text-muted small">Score</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-info" id="correctDisplay">{{ run.correct_answers }}</div>
+                <div class="text-muted small">Correct</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-secondary" id="totalDisplay">{{ run.total_questions }}</div>
+                <div class="text-muted small">Total Questions</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6 fw-bold" id="answeredDisplay">{{ answered_count }}</div>
+                <div class="text-muted small">Answered</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress bar (shown when running) -->
+{% if run.status == 'running' or run.status == 'pending' %}
+<div class="card mb-4" id="progressCard">
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-1">
+            <span class="small text-muted">Progress</span>
+            <span class="small text-muted" id="progressText">{{ run.progress_pct }}%</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                id="progressBar"
+                style="width: {{ run.progress_pct }}%"></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Run details -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">Run Configuration</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-muted">Benchmark</dt>
+                    <dd class="col-7">{{ run.benchmark.name }}</dd>
+                    <dt class="col-5 text-muted">Provider</dt>
+                    <dd class="col-7">{{ run.provider.name }}</dd>
+                    <dt class="col-5 text-muted">Model</dt>
+                    <dd class="col-7"><code>{{ run.model_name }}</code></dd>
+                    <dt class="col-5 text-muted">Temperature</dt>
+                    <dd class="col-7">{{ run.temperature }}</dd>
+                    <dt class="col-5 text-muted">Max Tokens</dt>
+                    <dd class="col-7">{{ run.max_tokens }}</dd>
+                    <dt class="col-5 text-muted">Started</dt>
+                    <dd class="col-7">{{ run.started_at|date:"M d, Y H:i:s"|default:"-" }}</dd>
+                    <dt class="col-5 text-muted">Completed</dt>
+                    <dd class="col-7">{{ run.completed_at|date:"M d, Y H:i:s"|default:"-" }}</dd>
+                    {% if run.duration_seconds %}
+                    <dt class="col-5 text-muted">Duration</dt>
+                    <dd class="col-7">{{ run.duration_seconds|floatformat:1 }}s</dd>
+                    {% endif %}
+                </dl>
+                {% if run.system_prompt %}
+                <div class="mt-2">
+                    <small class="text-muted">System Prompt:</small>
+                    <p class="small bg-secondary p-2 rounded">{{ run.system_prompt }}</p>
+                </div>
+                {% endif %}
+                {% if run.error_message %}
+                <div class="alert alert-danger mt-2 small">
+                    <strong>Error:</strong> {{ run.error_message }}
+                </div>
+                {% endif %}
+
+                <!-- Tags display -->
+                {% if tags_list %}
+                <div class="mt-2">
+                    <small class="text-muted d-block mb-1">Tags:</small>
+                    {% for tag in tags_list %}
+                    <span class="badge bg-secondary me-1">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Notes & Tags inline editor -->
+                <div class="mt-3">
+                    <button class="btn btn-xs btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#notesTagsEditor">
+                        <i class="bi bi-pencil me-1"></i>Edit Notes &amp; Tags
+                    </button>
+                    <div class="collapse mt-2" id="notesTagsEditor">
+                        <form method="post" action="{% url 'runs:detail' run.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_notes_tags">
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1">Notes</label>
+                                <textarea name="notes" class="form-control form-control-sm border-secondary"
+                                    rows="3" placeholder="Add notes about this run...">{{ run.notes }}</textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1">Tags (comma-separated)</label>
+                                <input type="text" name="tags" class="form-control form-control-sm border-secondary"
+                                    placeholder="e.g. baseline, v1, experiment" value="{{ run.tags }}">
+                            </div>
+                            <button type="submit" class="btn btn-xs btn-primary">Save</button>
+                        </form>
+                    </div>
+                </div>
+                {% if run.notes %}
+                <div class="mt-2">
+                    <small class="text-muted d-block mb-1">Notes:</small>
+                    <div class="small border border-secondary rounded p-2 bg-body-secondary">{{ run.notes|linebreaksbr }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <!-- Subject breakdown chart -->
+        {% if subject_stats %}
+        <div class="card h-100">
+            <div class="card-header">Score by Subject</div>
+            <div class="card-body">
+                <canvas id="subjectChart" height="200"></canvas>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Subject table -->
+{% if subject_stats %}
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-bar-chart me-2"></i>Breakdown by Subject
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Correct</th>
+                    <th>Total</th>
+                    <th>Score</th>
+                    <th>95% CI</th>
+                    <th>Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in subject_stats %}
+                <tr>
+                    <td>{{ s.subject }}</td>
+                    <td>{{ s.correct }}</td>
+                    <td>{{ s.total }}</td>
+                    <td>
+                        <span class="fw-bold {% if s.pct >= 70 %}text-success{% elif s.pct >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ s.pct }}%
+                        </span>
+                    </td>
+                    <td class="text-muted small">
+                        {% if s.ci_low is not None %}{{ s.ci_low }}–{{ s.ci_high }}%{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 8px; min-width: 100px;">
+                            <div class="progress-bar {% if s.pct >= 70 %}bg-success{% elif s.pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                style="width: {{ s.pct }}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent results -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-check me-2"></i>Results</span>
+        <div class="d-flex gap-2">
+            <a href="?filter=all" class="btn btn-xs {% if result_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">All ({{ answered_count }})</a>
+            <a href="?filter=correct" class="btn btn-xs {% if result_filter == 'correct' %}btn-success{% else %}btn-outline-success{% endif %}">Correct</a>
+            <a href="?filter=incorrect" class="btn btn-xs {% if result_filter == 'incorrect' %}btn-danger{% else %}btn-outline-danger{% endif %}">Incorrect</a>
+            <a href="{% url 'runs:results' run.pk %}" class="btn btn-xs btn-outline-secondary">
+                <i class="bi bi-arrow-right me-1"></i>Full Results
+            </a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Question</th>
+                    <th>Correct</th>
+                    <th>Answer</th>
+                    <th>Model Answer</th>
+                    <th>Time</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="resultsTable">
+                {% for result in results_page %}
+                <tr class="{% if result.is_correct %}table-success-subtle{% elif result.is_correct == False %}table-danger-subtle{% endif %}">
+                    <td>
+                        <span class="text-truncate d-inline-block" style="max-width: 300px;" title="{{ result.question.question }}">
+                            {{ result.question.question|truncatechars:70 }}
+                        </span>
+                    </td>
+                    <td><strong class="text-success">{{ result.question.correct_answer }}</strong></td>
+                    <td>
+                        <span class="{% if result.is_correct %}text-success{% else %}text-danger{% endif %} fw-bold">
+                            {{ result.parsed_answer }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="text-muted small text-truncate d-inline-block" style="max-width: 200px;" title="{{ result.model_response }}">
+                            {{ result.model_response|truncatechars:50 }}
+                        </span>
+                    </td>
+                    <td><span class="text-muted small">{{ result.response_time|floatformat:2 }}s</span></td>
+                    <td>
+                        {% if result.is_correct %}
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        {% elif result.is_correct == False %}
+                        <i class="bi bi-x-circle-fill text-danger"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-3">No results yet...</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if results_page.has_other_pages %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if results_page.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ results_page.previous_page_number }}">Prev</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">{{ results_page.number }} / {{ results_page.paginator.num_pages }}</span>
+                </li>
+                {% if results_page.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ results_page.next_page_number }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if run.status == 'running' or run.status == 'pending' %}
+<script>
+const runId = {{ run.pk }};
+const statusUrl = "{% url 'runs:status_api' run.pk %}";
+let pollInterval = null;
+
+function pollStatus() {
+    fetch(statusUrl)
+        .then(r => r.json())
+        .then(data => {
+            // Update badges and counters
+            document.getElementById('statusBadge').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+            document.getElementById('scoreDisplay').textContent = data.score.toFixed(1) + '%';
+            document.getElementById('correctDisplay').textContent = data.correct_answers;
+            document.getElementById('totalDisplay').textContent = data.total_questions;
+            document.getElementById('answeredDisplay').textContent = data.answered_count;
+
+            const pct = data.progress_pct || 0;
+            const pb = document.getElementById('progressBar');
+            const pt = document.getElementById('progressText');
+            if (pb) pb.style.width = pct + '%';
+            if (pt) pt.textContent = pct + '%';
+
+            // If completed or failed, reload page
+            if (['completed', 'failed', 'cancelled'].includes(data.status)) {
+                clearInterval(pollInterval);
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(e => console.error('Poll error:', e));
+}
+
+pollInterval = setInterval(pollStatus, 2000);
+</script>
+{% endif %}
+
+{% if subject_stats %}
+<script>
+const subjectLabels = [{% for s in subject_stats %}"{{ s.subject|truncatechars:20 }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const subjectScores = [{% for s in subject_stats %}{{ s.pct }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+const ctx = document.getElementById('subjectChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: subjectLabels,
+        datasets: [{
+            label: 'Score %',
+            data: subjectScores,
+            backgroundColor: subjectScores.map(s =>
+                s >= 70 ? 'rgba(25, 135, 84, 0.7)' :
+                s >= 50 ? 'rgba(255, 193, 7, 0.7)' :
+                'rgba(220, 53, 69, 0.7)'
+            ),
+            borderColor: subjectScores.map(s =>
+                s >= 70 ? '#198754' : s >= 50 ? '#ffc107' : '#dc3545'
+            ),
+            borderWidth: 1,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: { color: '#adb5bd' },
+                grid: { color: 'rgba(255,255,255,0.1)' },
+            },
+            x: {
+                ticks: { color: '#adb5bd', maxRotation: 45 },
+                grid: { display: false },
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

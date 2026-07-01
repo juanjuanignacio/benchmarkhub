@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Template — LLM Benchmarks{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'runs:list' %}">Runs</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'runs:template_list' %}">Templates</a></li>
+      <li class="breadcrumb-item active">{{ action }}</li>
+    </ol>
+  </nav>
+  <h2><i class="bi bi-bookmark-plus me-2 text-primary"></i>{{ action }} Run Template</h2>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card border-secondary">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Template Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ initial.name|default:'' }}" placeholder="e.g. GPT-4o zero-shot baseline">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <input type="text" name="description" class="form-control"
+                   value="{{ initial.description|default:'' }}"
+                   placeholder="Optional short description">
+          </div>
+
+          <hr>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Model Name <span class="text-danger">*</span></label>
+            <input type="text" name="model_name" class="form-control" required
+                   value="{{ initial.model_name|default:'' }}"
+                   placeholder="e.g. gpt-4o, llama-3.1-70b">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Temperature</label>
+              <input type="number" name="temperature" class="form-control" step="0.1" min="0" max="2"
+                     value="{{ initial.temperature|default:'0.0' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Max Tokens</label>
+              <input type="number" name="max_tokens" class="form-control" min="1"
+                     value="{{ initial.max_tokens|default:'512' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Questions</label>
+              <input type="number" name="num_questions" class="form-control" min="0"
+                     value="{{ initial.num_questions|default:'' }}"
+                     placeholder="0 = all">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Parallel Workers</label>
+              <input type="number" name="parallel_workers" class="form-control" min="1" max="32"
+                     value="{{ initial.parallel_workers|default:'1' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Few-shot Count</label>
+              <input type="number" name="few_shot_count" class="form-control" min="0" max="10"
+                     value="{{ initial.few_shot_count|default:'0' }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check mb-2">
+                <input type="checkbox" name="use_cot" class="form-check-input" id="cot"
+                       {% if initial.use_cot %}checked{% endif %}>
+                <label class="form-check-label fw-semibold" for="cot">Chain-of-Thought</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">System Prompt</label>
+            <textarea name="system_prompt" class="form-control font-monospace" rows="4"
+                      placeholder="Optional system prompt to prepend to every question">{{ initial.system_prompt|default:'' }}</textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-bookmark-check me-1"></i>Save Template
+            </button>
+            <a href="{% url 'runs:template_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
