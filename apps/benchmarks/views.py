@@ -210,7 +210,7 @@ def _do_load_benchmark(slug, num_samples, benchmark_id):
         try:
             benchmark = Benchmark.objects.get(id=benchmark_id)
             error_str = str(e)
-            if 'gated dataset' in error_str.lower():
+            if 'gated' in error_str.lower():
                 error_type = 'gated'
             elif 'NameResolutionError' in error_str or 'ConnectionError' in error_str or 'Max retries' in error_str:
                 error_type = 'network'
