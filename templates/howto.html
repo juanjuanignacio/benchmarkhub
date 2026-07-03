@@ -21,6 +21,7 @@
                 <a href="#sec-dashboard"  class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-speedometer me-2 text-primary"></i>Dashboard</a>
                 <a href="#sec-providers"  class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-cpu me-2 text-secondary"></i>Providers</a>
                 <a href="#sec-runs"       class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-play-circle me-2 text-primary"></i>Launching Runs</a>
+                <a href="#sec-multimodal" class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-images me-2 text-info"></i>Multimodal Benchmarks</a>
                 <a href="#sec-advanced"   class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-gear me-2 text-secondary"></i>Advanced Run Options</a>
                 <a href="#sec-prompts"    class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-chat-square-text me-2 text-info"></i>Prompt Library</a>
                 <a href="#sec-ab"         class="list-group-item list-group-item-action border-0 py-2"><i class="bi bi-split me-2 text-warning"></i>A/B Testing</a>
@@ -114,7 +115,7 @@
                     <div class="col-md-6">
                         <div class="p-3 rounded-3" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
                             <h6 class="fw-semibold mb-1"><span class="badge provider-type-anthropic me-2">Anthropic</span>API</h6>
-                            <p class="small text-muted mb-0">Claude 3/4 family. Requires an Anthropic API key.</p>
+                            <p class="small text-muted mb-0">Claude family (Opus, Sonnet, Haiku). Requires an Anthropic API key.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -166,6 +167,72 @@
                 <div class="alert alert-secondary small mb-0">
                     <i class="bi bi-lightbulb me-2"></i>
                     To load a benchmark that isn't loaded yet, go to <a href="{% url 'benchmarks:list' %}"><strong>Benchmarks → All Benchmarks</strong></a> and click <strong>Load</strong> next to it.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Multimodal Benchmarks ── -->
+        <div class="card mb-4" id="sec-multimodal">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-images text-info fs-5"></i>
+                <span>Multimodal Benchmarks</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Beyond text, BenchmarkHub evaluates models on <strong>vision</strong>, <strong>audio</strong>, and <strong>agentic</strong> benchmarks. Each benchmark carries a type badge across the UI, and the run form warns you when a special model capability is required.</p>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 h-100" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-image me-2 text-info"></i>Vision</h6>
+                            <p class="small text-muted mb-2">Questions include one or more images that are sent to the model alongside the prompt.</p>
+                            <p class="small mb-0"><code>scienceqa_vision</code> · <code>ai2d</code> · <code>mmmu</code> · <code>mmbench</code> · <code>chartqa</code></p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 h-100" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-soundwave me-2 text-warning"></i>Audio</h6>
+                            <p class="small text-muted mb-2">Speech clips sent to audio-capable models. LibriSpeech is scored by Word Error Rate (correct if WER &lt; 0.1).</p>
+                            <p class="small mb-0"><code>librispeech</code></p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 h-100" style="background: var(--bm-glass-md); border: 1px solid var(--bm-border);">
+                            <h6 class="fw-semibold mb-1"><i class="bi bi-robot me-2 text-success"></i>Agentic</h6>
+                            <p class="small text-muted mb-2">Multi-step reasoning (GAIA) and function calling (BFCL) — text-based, no special model capability needed.</p>
+                            <p class="small mb-0"><code>gaia</code> · <code>bfcl_simple</code></p>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-semibold mb-2">Which models can I use?</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm small">
+                        <thead>
+                            <tr><th>Provider</th><th>Vision</th><th>Audio</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Ollama</td><td>✅ <code>qwen2.5vl</code>, <code>gemma3</code>, <code>llava</code>…</td><td>—</td></tr>
+                            <tr><td>vLLM</td><td>✅ any vision model served</td><td>✅ any audio model served</td></tr>
+                            <tr><td>OpenAI</td><td>✅ <code>gpt-4o</code>…</td><td>✅ <code>gpt-4o-audio-preview</code>, <code>whisper-1</code></td></tr>
+                            <tr><td>Anthropic</td><td>✅ <code>claude-opus-4-8</code>, <code>claude-sonnet-5</code>…</td><td>—</td></tr>
+                            <tr><td>Gemini</td><td>✅</td><td>✅</td></tr>
+                            <tr><td>Groq</td><td>✅ vision models</td><td>✅ <code>whisper-large-v3</code></td></tr>
+                            <tr><td>Mistral</td><td>✅ <code>pixtral</code></td><td>—</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-semibold mb-2">How it works</h6>
+                <ol class="mb-3">
+                    <li>When you <strong>load</strong> a vision/audio benchmark, images (JPEG) and audio clips (WAV) are downloaded and stored under <code>media/</code>.</li>
+                    <li>The <strong>Questions</strong> page previews the images and plays the audio inline, so you can inspect exactly what the model receives.</li>
+                    <li>During a <strong>run</strong>, each question's media is base64-encoded and embedded in the request using the provider's native format.</li>
+                    <li>If a provider can't handle the modality, the question fails with an explicit error — the model is never evaluated "blind" on text alone.</li>
+                </ol>
+
+                <div class="alert alert-secondary small mb-0">
+                    <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+                    <code>gaia</code> is a <strong>gated</strong> HuggingFace dataset — request access on the dataset page and authenticate with <code>huggingface-cli login</code> before loading it.
                 </div>
             </div>
         </div>

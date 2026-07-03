@@ -26,13 +26,26 @@ class MistralBackend(BaseProviderBackend):
             raise ImportError("mistralai package not installed. Run: pip install mistralai")
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
+        if audio:
+            return self._unsupported(start, 'audio', 'Mistral')
         try:
             client = self._get_client()
+            if images:
+                # Vision content parts (pixtral / vision-capable models)
+                content = [{'type': 'text', 'text': prompt}]
+                for b64 in images:
+                    content.append({
+                        'type': 'image_url',
+                        'image_url': f'data:image/jpeg;base64,{b64}',
+                    })
+                messages = [{'role': 'user', 'content': content}]
+            else:
+                messages = [{'role': 'user', 'content': prompt}]
             resp = client.chat.complete(
                 model=model,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )

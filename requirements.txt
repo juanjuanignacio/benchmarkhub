@@ -4,6 +4,9 @@ requests
 pandas
 openpyxl
 datasets
+pillow
+soundfile
+jiwer
 openai
 anthropic
 cohere

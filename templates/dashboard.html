@@ -213,6 +213,9 @@
 
 {% block extra_js %}
 <script>
+// Theme-aware chart palette (defined in main.js, validated for both surfaces)
+const bmChart = bmChartPalette();
+
 // Runs over time chart
 const runsLabels = [{% for label in runs_by_day_labels %}"{{ label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
 const runsData = [{% for count in runs_by_day %}{{ count }}{% if not forloop.last %},{% endif %}{% endfor %}];
@@ -225,12 +228,14 @@ new Chart(ctxTime, {
         datasets: [{
             label: 'Runs',
             data: runsData,
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13,110,253,0.15)',
+            borderColor: bmChart.accent,
+            backgroundColor: bmChart.accentFill,
+            borderWidth: 2,
             fill: true,
             tension: 0.3,
-            pointBackgroundColor: '#0d6efd',
+            pointBackgroundColor: bmChart.accent,
             pointRadius: 3,
+            pointHitRadius: 12,
         }]
     },
     options: {
@@ -239,11 +244,11 @@ new Chart(ctxTime, {
         scales: {
             y: {
                 beginAtZero: true,
-                ticks: { color: '#adb5bd', stepSize: 1 },
-                grid: { color: 'rgba(255,255,255,0.07)' },
+                ticks: { color: bmChart.tick, stepSize: 1 },
+                grid: { color: bmChart.grid },
             },
             x: {
-                ticks: { color: '#adb5bd', maxRotation: 45 },
+                ticks: { color: bmChart.tick, maxRotation: 45 },
                 grid: { display: false },
             }
         }
@@ -264,14 +269,11 @@ new Chart(ctxModels, {
             label: 'Avg Score %',
             data: modelScores,
             backgroundColor: modelScores.map(s =>
-                s >= 70 ? 'rgba(25,135,84,0.7)' :
-                s >= 50 ? 'rgba(255,193,7,0.7)' :
-                'rgba(220,53,69,0.7)'
+                s >= 70 ? bmChart.good : s >= 50 ? bmChart.warn : bmChart.bad
             ),
-            borderColor: modelScores.map(s =>
-                s >= 70 ? '#198754' : s >= 50 ? '#ffc107' : '#dc3545'
-            ),
-            borderWidth: 1,
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: 'start',
         }]
     },
     options: {
@@ -282,11 +284,11 @@ new Chart(ctxModels, {
             x: {
                 beginAtZero: true,
                 max: 100,
-                ticks: { color: '#adb5bd' },
-                grid: { color: 'rgba(255,255,255,0.07)' },
+                ticks: { color: bmChart.tick },
+                grid: { color: bmChart.grid },
             },
             y: {
-                ticks: { color: '#adb5bd' },
+                ticks: { color: bmChart.tick },
                 grid: { display: false },
             }
         }

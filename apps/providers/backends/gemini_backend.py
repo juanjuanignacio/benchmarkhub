@@ -27,7 +27,7 @@ class GeminiBackend(BaseProviderBackend):
             )
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
         try:
             genai = self._configure()
@@ -39,14 +39,21 @@ class GeminiBackend(BaseProviderBackend):
                 model_name=model,
                 generation_config=generation_config,
             )
-            if images:
+            if images or audio:
                 import base64
-                import io
-                from PIL import Image
                 parts = []
-                for b64 in images:
-                    img = Image.open(io.BytesIO(base64.b64decode(b64)))
-                    parts.append(img)
+                if images:
+                    import io
+                    from PIL import Image
+                    for b64 in images:
+                        img = Image.open(io.BytesIO(base64.b64decode(b64)))
+                        parts.append(img)
+                if audio:
+                    fmt = audio.get('format', 'wav')
+                    parts.append({
+                        'mime_type': f'audio/{fmt}',
+                        'data': base64.b64decode(audio['data']),
+                    })
                 parts.append(prompt)
                 response = model_obj.generate_content(parts)
             else:

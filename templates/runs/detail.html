@@ -386,6 +386,7 @@ pollInterval = setInterval(pollStatus, 2000);
 const subjectLabels = [{% for s in subject_stats %}"{{ s.subject|truncatechars:20 }}"{% if not forloop.last %},{% endif %}{% endfor %}];
 const subjectScores = [{% for s in subject_stats %}{{ s.pct }}{% if not forloop.last %},{% endif %}{% endfor %}];
 
+const bmChart = bmChartPalette();
 const ctx = document.getElementById('subjectChart').getContext('2d');
 new Chart(ctx, {
     type: 'bar',
@@ -395,14 +396,11 @@ new Chart(ctx, {
             label: 'Score %',
             data: subjectScores,
             backgroundColor: subjectScores.map(s =>
-                s >= 70 ? 'rgba(25, 135, 84, 0.7)' :
-                s >= 50 ? 'rgba(255, 193, 7, 0.7)' :
-                'rgba(220, 53, 69, 0.7)'
+                s >= 70 ? bmChart.good : s >= 50 ? bmChart.warn : bmChart.bad
             ),
-            borderColor: subjectScores.map(s =>
-                s >= 70 ? '#198754' : s >= 50 ? '#ffc107' : '#dc3545'
-            ),
-            borderWidth: 1,
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: 'start',
         }]
     },
     options: {
@@ -414,11 +412,11 @@ new Chart(ctx, {
             y: {
                 beginAtZero: true,
                 max: 100,
-                ticks: { color: '#adb5bd' },
-                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: { color: bmChart.tick },
+                grid: { color: bmChart.grid },
             },
             x: {
-                ticks: { color: '#adb5bd', maxRotation: 45 },
+                ticks: { color: bmChart.tick, maxRotation: 45 },
                 grid: { display: false },
             }
         }

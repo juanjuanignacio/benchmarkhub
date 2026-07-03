@@ -97,7 +97,8 @@
 <script>
 const chartData = {{ benchmarks_data|safe }};
 const benchmarks = Object.keys(chartData);
-const colors = ['#0d6efd','#198754','#ffc107','#dc3545','#0dcaf0','#6f42c1','#fd7e14','#20c997'];
+const bmChart = bmChartPalette();
+const colors = bmChart.categorical;
 
 // Gather all unique dates
 const allDates = [...new Set(
@@ -125,9 +126,10 @@ new Chart(document.getElementById('historyChart'), {
     responsive: true,
     interaction: { mode: 'index', intersect: false },
     scales: {
-      y: { min: 0, max: 100, ticks: { callback: v => v + '%' } }
+      y: { min: 0, max: 100, ticks: { color: bmChart.tick, callback: v => v + '%' }, grid: { color: bmChart.grid } },
+      x: { ticks: { color: bmChart.tick }, grid: { display: false } }
     },
-    plugins: { legend: { position: 'top' } }
+    plugins: { legend: { position: 'top', labels: { color: bmChart.tick } } }
   }
 });
 </script>

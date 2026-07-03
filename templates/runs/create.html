@@ -362,10 +362,10 @@ document.getElementById('benchmarkSelect')?.addEventListener('change', function(
     // Show type-specific alert
     const alertDiv = document.getElementById('benchmarkTypeAlert');
     if (btype === 'vision') {
-        alertDiv.innerHTML = '<span class="text-info"><i class="bi bi-image me-1"></i>Vision benchmark — requires a vision-capable model (GPT-4o, Claude 3.5, Gemini 1.5 Pro).</span>';
+        alertDiv.innerHTML = '<span class="text-info"><i class="bi bi-image me-1"></i>Vision benchmark — requires a vision-capable model (e.g. GPT-4o, Claude Opus/Sonnet, Gemini, or qwen2.5vl / gemma3 / llava on Ollama/vLLM).</span>';
         alertDiv.style.display = 'block';
     } else if (btype === 'audio') {
-        alertDiv.innerHTML = '<span class="text-warning"><i class="bi bi-soundwave me-1"></i>Audio benchmark — requires an audio-capable model or ASR pipeline.</span>';
+        alertDiv.innerHTML = '<span class="text-warning"><i class="bi bi-soundwave me-1"></i>Audio benchmark — requires an audio-capable model (e.g. gpt-4o-audio-preview, Gemini, whisper via OpenAI/Groq, or an audio model on vLLM).</span>';
         alertDiv.style.display = 'block';
     } else if (btype === 'agentic') {
         alertDiv.innerHTML = '<span class="text-success"><i class="bi bi-robot me-1"></i>Agentic benchmark — tests reasoning and tool-use capabilities.</span>';

@@ -14,8 +14,10 @@ class OllamaBackend(BaseProviderBackend):
         return self._get_base_url(self.DEFAULT_BASE_URL).rstrip('/')
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
+        if audio:
+            return self._unsupported(start, 'audio', 'Ollama')
         url = f"{self._base_url()}/api/generate"
         payload = {
             'model': model,
@@ -26,6 +28,9 @@ class OllamaBackend(BaseProviderBackend):
                 'num_predict': max_tokens,
             }
         }
+        if images:
+            # Native multimodal support (llava, llama3.2-vision, qwen2.5-vl, ...)
+            payload['images'] = list(images)
         try:
             resp = requests.post(url, json=payload, timeout=240)
             resp.raise_for_status()

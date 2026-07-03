@@ -9,12 +9,14 @@ class BaseProviderBackend:
         self.provider = provider_model
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         """
         Generate a completion for the given prompt.
 
         Args:
             images: optional list of base64-encoded image strings for vision models.
+            audio: optional dict {'data': <b64 str>, 'format': 'wav'|'mp3'|...}
+                for audio-capable models (ASR / audio understanding).
 
         Returns:
             dict with keys:
@@ -23,6 +25,21 @@ class BaseProviderBackend:
                 - error (str or None): error message if failed
         """
         raise NotImplementedError
+
+    @staticmethod
+    def _unsupported(start_time, what: str, provider_name: str) -> dict:
+        """Standard error dict for unsupported input modalities.
+
+        Returning an explicit error (instead of silently dropping the input)
+        prevents misleading benchmark scores where the model answers without
+        ever seeing the image/audio.
+        """
+        import time
+        return {
+            'text': '',
+            'response_time': time.time() - start_time,
+            'error': f'{provider_name} backend does not support {what} input',
+        }
 
     def list_models(self) -> list:
         """

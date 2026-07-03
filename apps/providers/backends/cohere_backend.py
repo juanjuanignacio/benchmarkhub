@@ -24,8 +24,12 @@ class CohereBackend(BaseProviderBackend):
             raise ImportError("cohere package not installed. Run: pip install cohere")
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
+        if images:
+            return self._unsupported(start, 'image', 'Cohere')
+        if audio:
+            return self._unsupported(start, 'audio', 'Cohere')
         try:
             client = self._get_client()
             resp = client.generate(

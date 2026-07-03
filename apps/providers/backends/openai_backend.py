@@ -30,16 +30,34 @@ class OpenAIBackend(BaseProviderBackend):
             raise ImportError("openai package not installed. Run: pip install openai")
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
         try:
             client = self._get_client()
-            if images:
+
+            # Dedicated ASR models go through the transcriptions endpoint
+            if audio and ('whisper' in model.lower() or 'transcribe' in model.lower()):
+                import base64
+                import io
+                buf = io.BytesIO(base64.b64decode(audio['data']))
+                buf.name = f"audio.{audio.get('format', 'wav')}"
+                resp = client.audio.transcriptions.create(model=model, file=buf)
+                return {'text': resp.text or '', 'response_time': time.time() - start,
+                        'error': None}
+
+            if images or audio:
                 content = [{'type': 'text', 'text': prompt}]
-                for b64 in images:
+                for b64 in (images or []):
                     content.append({
                         'type': 'image_url',
                         'image_url': {'url': f'data:image/jpeg;base64,{b64}'},
+                    })
+                if audio:
+                    # Requires an audio-capable chat model (e.g. gpt-4o-audio-preview)
+                    content.append({
+                        'type': 'input_audio',
+                        'input_audio': {'data': audio['data'],
+                                        'format': audio.get('format', 'wav')},
                     })
                 messages = [{'role': 'user', 'content': content}]
             else:

@@ -5,6 +5,31 @@
 'use strict';
 
 // -------------------------------------------------------
+// Theme-aware chart palette (colors validated for both
+// surfaces with the six-checks palette validator).
+//   categorical: fixed-order series identity (never cycle)
+//   good/warn/bad: reserved status colors (score thresholds)
+// -------------------------------------------------------
+function bmChartPalette() {
+    const dark = (document.documentElement.getAttribute('data-bs-theme') || 'dark') === 'dark';
+    return dark ? {
+        dark: true,
+        accent: '#4C8DFF', accentFill: 'rgba(76,141,255,0.12)',
+        categorical: ['#4C8DFF', '#C77E27', '#2BAA8F', '#9578E8',
+                      '#D06A78', '#2E93BF', '#7FA23B', '#C56BC9'],
+        good: '#28A96C', warn: '#BD7E23', bad: '#E5655E',
+        tick: '#8d99ad', grid: 'rgba(148,163,184,0.10)',
+    } : {
+        dark: false,
+        accent: '#2F6FE4', accentFill: 'rgba(47,111,228,0.10)',
+        categorical: ['#2F6FE4', '#B26310', '#0F8A78', '#7C5CD6',
+                      '#B84A59', '#1D7FA8', '#5F7E1E', '#A2409F'],
+        good: '#178553', warn: '#9A6A00', bad: '#C13A3A',
+        tick: '#5b6779', grid: 'rgba(23,32,46,0.08)',
+    };
+}
+
+// -------------------------------------------------------
 // Utility functions
 // -------------------------------------------------------
 

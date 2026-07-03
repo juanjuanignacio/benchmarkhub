@@ -33,9 +33,12 @@ class Command(BaseCommand):
         parser.add_argument('--loaded', action='store_true',
                             help='Show only loaded benchmarks')
         parser.add_argument('--category', help='Filter benchmarks by category')
+        parser.add_argument('--type', dest='benchmark_type',
+                            choices=['text', 'vision', 'audio', 'agentic'],
+                            help='Filter benchmarks by type (text/vision/audio/agentic)')
         # General
-        parser.add_argument('--limit', type=int, default=50,
-                            help='Maximum rows to show (default: 50)')
+        parser.add_argument('--limit', type=int, default=200,
+                            help='Maximum rows to show (default: 200)')
 
     def handle(self, *args, **options):
         resource = options['resource']
@@ -98,6 +101,8 @@ class Command(BaseCommand):
             qs = qs.filter(loaded_at__isnull=False)
         if options.get('category'):
             qs = qs.filter(category__icontains=options['category'])
+        if options.get('benchmark_type'):
+            qs = qs.filter(benchmark_type=options['benchmark_type'])
         qs = qs[:options['limit']]
 
         if not qs:
@@ -108,14 +113,15 @@ class Command(BaseCommand):
                 self.stdout.write(f'  {slug}')
             return
 
-        fmt = '{:<25} {:<15} {:<8} {}'
+        fmt = '{:<25} {:<15} {:<8} {:<10} {}'
         self.stdout.write(self.style.SUCCESS(
-            fmt.format('SLUG', 'CATEGORY', 'QUESTIONS', 'NAME')
+            fmt.format('SLUG', 'CATEGORY', 'TYPE', 'QUESTIONS', 'NAME')
         ))
-        self.stdout.write('-' * 75)
+        self.stdout.write('-' * 85)
         for b in qs:
             loaded = str(b.num_questions) if b.is_loaded else self.style.WARNING('not loaded')
-            self.stdout.write(fmt.format(b.slug[:25], b.category[:15], loaded, b.name))
+            self.stdout.write(fmt.format(b.slug[:25], b.category[:15],
+                                         b.benchmark_type[:8], loaded, b.name))
 
     # ── Providers ────────────────────────────────────────────────────────────
 

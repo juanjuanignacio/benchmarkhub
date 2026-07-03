@@ -14,7 +14,7 @@ class VLLMBackend(BaseProviderBackend):
         return self._get_base_url(self.DEFAULT_BASE_URL).rstrip('/')
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
         # Try OpenAI-compatible chat completions first
         url = f"{self._base_url()}/v1/chat/completions"
@@ -23,9 +23,27 @@ class VLLMBackend(BaseProviderBackend):
         if api_key:
             headers['Authorization'] = f'Bearer {api_key}'
 
+        if images or audio:
+            # OpenAI-compatible multimodal content parts (vision/audio models)
+            content = [{'type': 'text', 'text': prompt}]
+            for b64 in (images or []):
+                content.append({
+                    'type': 'image_url',
+                    'image_url': {'url': f'data:image/jpeg;base64,{b64}'},
+                })
+            if audio:
+                content.append({
+                    'type': 'input_audio',
+                    'input_audio': {'data': audio['data'],
+                                    'format': audio.get('format', 'wav')},
+                })
+            messages = [{'role': 'user', 'content': content}]
+        else:
+            messages = [{'role': 'user', 'content': prompt}]
+
         payload = {
             'model': model,
-            'messages': [{'role': 'user', 'content': prompt}],
+            'messages': messages,
             'temperature': temperature,
             'max_tokens': max_tokens,
         }
@@ -40,7 +58,12 @@ class VLLMBackend(BaseProviderBackend):
             logger.error(err)
             return {'text': '', 'response_time': time.time() - start, 'error': err}
         except requests.exceptions.HTTPError as e:
-            # Fall back to completions endpoint
+            # Fall back to completions endpoint (text-only: never silently
+            # drop multimodal inputs — that would corrupt benchmark scores)
+            if images or audio:
+                err = f"vLLM chat completions rejected multimodal request: {e}"
+                logger.error(err)
+                return {'text': '', 'response_time': time.time() - start, 'error': err}
             try:
                 comp_url = f"{self._base_url()}/v1/completions"
                 comp_payload = {

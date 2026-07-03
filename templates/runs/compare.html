@@ -249,7 +249,7 @@ const subjectRowData = [
     [{% for cell in row.cells %}{{ cell.pct|default:"-1" }}{% if not forloop.last %},{% endif %}{% endfor %}],
     {% endfor %}
 ];
-const runColors = ['#0d6efd','#198754','#ffc107','#dc3545'];
+const runColors = bmChartPalette().categorical;
 document.querySelectorAll('.best-badge').forEach((el, rowIdx) => {
     const pcts = subjectRowData[rowIdx];
     if (!pcts || pcts.every(p => p < 0)) return;
@@ -265,8 +265,9 @@ document.querySelectorAll('.best-badge').forEach((el, rowIdx) => {
 <script>
 const chartSubjects = {{ chart_subjects_json|safe }};
 const chartDatasets = {{ chart_datasets_json|safe }};
-const colors = ['#0d6efd','#198754','#ffc107','#dc3545'];
-chartDatasets.forEach((ds, i) => { ds.backgroundColor = colors[i]; ds.borderRadius = 4; });
+const bmChart = bmChartPalette();
+const colors = bmChart.categorical;
+chartDatasets.forEach((ds, i) => { ds.backgroundColor = colors[i]; ds.borderRadius = 4; ds.borderSkipped = 'start'; });
 
 {% if subjects and not different_benchmarks %}
 // Grouped bar chart — one group per subject
@@ -276,12 +277,12 @@ new Chart(document.getElementById('subjectBarChart'), {
     options: {
         responsive: true,
         plugins: {
-            legend: { labels: { color: '#adb5bd' } },
+            legend: { labels: { color: bmChart.tick } },
             tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
         },
         scales: {
-            x: { ticks: { color: '#adb5bd', maxRotation: 45 }, grid: { display: false } },
-            y: { min: 0, max: 100, ticks: { color: '#adb5bd', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+            x: { ticks: { color: bmChart.tick, maxRotation: 45 }, grid: { display: false } },
+            y: { min: 0, max: 100, ticks: { color: bmChart.tick, callback: v => v + '%' }, grid: { color: bmChart.grid } },
         }
     }
 });
@@ -297,8 +298,8 @@ new Chart(document.getElementById('subjectBarChart'), {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-            y: { min: 0, max: 100, ticks: { color: '#adb5bd', callback: v => v + '%' } },
-            x: { ticks: { color: '#adb5bd' } }
+            y: { min: 0, max: 100, ticks: { color: bmChart.tick, callback: v => v + '%' }, grid: { color: bmChart.grid } },
+            x: { ticks: { color: bmChart.tick } }
         }
     }
 });

@@ -26,13 +26,38 @@ class GroqBackend(BaseProviderBackend):
             raise ImportError("groq package not installed. Run: pip install groq")
 
     def complete(self, prompt: str, model: str, temperature: float = 0,
-                 max_tokens: int = 512, images=None) -> dict:
+                 max_tokens: int = 512, images=None, audio=None) -> dict:
         start = time.time()
         try:
             client = self._get_client()
+
+            # Groq hosts Whisper models for ASR via the transcriptions endpoint
+            if audio and 'whisper' in model.lower():
+                import base64
+                import io
+                buf = io.BytesIO(base64.b64decode(audio['data']))
+                buf.name = f"audio.{audio.get('format', 'wav')}"
+                resp = client.audio.transcriptions.create(model=model, file=buf)
+                return {'text': resp.text or '', 'response_time': time.time() - start,
+                        'error': None}
+            if audio:
+                return self._unsupported(start, 'audio (use a whisper-* model)', 'Groq')
+
+            if images:
+                # OpenAI-style vision content parts (llama-4 vision models)
+                content = [{'type': 'text', 'text': prompt}]
+                for b64 in images:
+                    content.append({
+                        'type': 'image_url',
+                        'image_url': {'url': f'data:image/jpeg;base64,{b64}'},
+                    })
+                messages = [{'role': 'user', 'content': content}]
+            else:
+                messages = [{'role': 'user', 'content': prompt}]
+
             resp = client.chat.completions.create(
                 model=model,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )

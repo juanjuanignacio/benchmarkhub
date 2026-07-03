@@ -192,11 +192,18 @@ new Chart(document.getElementById('subjectChart'), {
   data: {
     labels,
     datasets: [
-      { label: '{{ run_a.metadata.ab_name|default:"Variant A" }}', data: dataA, backgroundColor: 'rgba(13,110,253,0.7)', borderColor: 'rgba(13,110,253,1)', borderWidth: 1 },
-      { label: '{{ run_b.metadata.ab_name|default:"Variant B" }}', data: dataB, backgroundColor: 'rgba(255,193,7,0.7)', borderColor: 'rgba(255,193,7,1)', borderWidth: 1 },
+      { label: '{{ run_a.metadata.ab_name|default:"Variant A" }}', data: dataA, backgroundColor: bmChartPalette().categorical[0], borderWidth: 0, borderRadius: 4, borderSkipped: 'start' },
+      { label: '{{ run_b.metadata.ab_name|default:"Variant B" }}', data: dataB, backgroundColor: bmChartPalette().categorical[1], borderWidth: 0, borderRadius: 4, borderSkipped: 'start' },
     ]
   },
-  options: { responsive: true, scales: { y: { min: 0, max: 100, ticks: { callback: v => v+'%' } } } }
+  options: {
+    responsive: true,
+    scales: {
+      y: { min: 0, max: 100, ticks: { color: bmChartPalette().tick, callback: v => v+'%' }, grid: { color: bmChartPalette().grid } },
+      x: { ticks: { color: bmChartPalette().tick }, grid: { display: false } }
+    },
+    plugins: { legend: { labels: { color: bmChartPalette().tick } } }
+  }
 });
 {% endif %}
 

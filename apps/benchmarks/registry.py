@@ -190,6 +190,26 @@ class BaseBenchmarkLoader(ABC):
                 logger.warning(f"Could not read image: {full}")
         return result
 
+    def get_audio_b64(self, question_obj):
+        """Return {'data': <b64>, 'format': <ext>} for this question's audio clip,
+        or None if the question has no audio.
+        Default implementation reads from question_obj.audio_path field."""
+        rel_path = getattr(question_obj, 'audio_path', '') or ''
+        if not rel_path:
+            return None
+        import base64
+        import os
+        from django.conf import settings
+        full = os.path.join(settings.MEDIA_ROOT, rel_path)
+        try:
+            with open(full, 'rb') as f:
+                data = base64.b64encode(f.read()).decode('ascii')
+        except OSError:
+            logger.warning(f"Could not read audio: {full}")
+            return None
+        ext = os.path.splitext(rel_path)[1].lstrip('.').lower() or 'wav'
+        return {'data': data, 'format': ext}
+
 
 class MMLULoader(BaseBenchmarkLoader):
     slug = 'mmlu'
@@ -2841,22 +2861,26 @@ class LibriSpeechLoader(BaseBenchmarkLoader):
         import os
         from django.conf import settings
 
-        ds = load_dataset('openslr/librispeech_asr', 'clean', split='test')
+        # streaming=True downloads only the test-clean shards; the non-streaming
+        # path would generate every split of the 'clean' config (train.100 is
+        # ~6 GB) just to read the test split.
+        ds = load_dataset('openslr/librispeech_asr', 'clean', split='test',
+                          streaming=True)
         audio_dir = os.path.join(settings.MEDIA_ROOT, 'benchmark_audio', 'librispeech')
         os.makedirs(audio_dir, exist_ok=True)
         questions = []
 
         for item in ds:
-            qid = item['id']
-            fname = f"{qid}.wav"
-            full_path = os.path.join(audio_dir, fname)
-
             try:
+                qid = item['id']
+                fname = f"{qid}.wav"
+                full_path = os.path.join(audio_dir, fname)
+
                 import soundfile as sf
                 sf.write(full_path, item['audio']['array'],
                          item['audio']['sampling_rate'])
             except Exception as e:
-                logger.warning(f"LibriSpeech: failed to save audio {qid}: {e}")
+                logger.warning(f"LibriSpeech: failed to save audio clip: {e}")
                 continue
 
             rel_path = os.path.join('benchmark_audio', 'librispeech', fname)

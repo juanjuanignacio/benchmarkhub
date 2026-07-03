@@ -26,9 +26,8 @@ media/
 .DS_Store
 Thumbs.db
 
-# Generated docs (can be rebuilt from .md/.py)
-BenchmarkHub_paper.docx
-BenchmarkHub_Supplementary.docx
+# Paper / generated docs (rebuilt from make_docx.py) — never pushed
+*.docx
 
 # Claude Code local settings
 .claude/

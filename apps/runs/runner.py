@@ -19,7 +19,7 @@ def _is_retryable_error(error_str):
 
 
 def _process_question_with_retry(backend, prompt, model, temperature, max_tokens,
-                                 max_retries=3, images=None):
+                                 max_retries=3, images=None, audio=None):
     """Call backend with exponential backoff retry.
 
     Retries on:
@@ -37,6 +37,7 @@ def _process_question_with_retry(backend, prompt, model, temperature, max_tokens
                 temperature=temperature,
                 max_tokens=max_tokens,
                 images=images,
+                audio=audio,
             )
             error_str = str(result.get('error') or '')
             if error_str and _is_retryable_error(error_str):
@@ -237,16 +238,18 @@ class BenchmarkRunner:
 
                 prompt = _build_prompt(question)
 
-                # Load images for vision benchmarks
+                # Load images/audio for multimodal benchmarks
                 images_b64 = None
+                audio_data = None
                 if loader:
                     imgs = loader.get_images_b64(question)
                     if imgs:
                         images_b64 = imgs
+                    audio_data = loader.get_audio_b64(question)
 
                 result_data = _process_question_with_retry(
                     backend, prompt, run.model_name, run.temperature, run.max_tokens,
-                    images=images_b64,
+                    images=images_b64, audio=audio_data,
                 )
                 model_response = result_data.get('text', '')
                 response_time = result_data.get('response_time', 0.0)

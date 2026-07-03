@@ -10,13 +10,17 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
     <script>
-    // Apply theme before page renders to avoid flash
+    // Apply theme before page renders to avoid flash.
+    // ?theme=light|dark forces the theme for this view (not persisted).
     (function() {
-        const theme = localStorage.getItem('theme') || 'dark';
+        const forced = new URLSearchParams(location.search).get('theme');
+        const theme = (forced === 'light' || forced === 'dark')
+            ? forced
+            : (localStorage.getItem('theme') || 'dark');
         document.documentElement.setAttribute('data-bs-theme', theme);
     })();
     </script>

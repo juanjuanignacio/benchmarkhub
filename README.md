@@ -1,8 +1,8 @@
 # BenchmarkHub
 
-A web platform for systematically evaluating and comparing Large Language Models across standardized benchmarks.
+A web platform for systematically evaluating and comparing Large Language Models across standardized benchmarks — **text, vision, audio, and agentic**.
 
-Built with Django 4, Bootstrap 5.3, and SQLite. Supports local models (Ollama, vLLM) and cloud APIs (OpenAI, Anthropic, Mistral, Google Gemini, Groq, Cohere, Together AI).
+Built with Django 4, Bootstrap 5.3, and SQLite. Supports local models (Ollama, vLLM) and cloud APIs (OpenAI, Anthropic, Mistral, Google Gemini, Groq, Cohere, Together AI). Vision benchmarks (MMMU, ScienceQA, AI2D, MMBench, ChartQA), audio/ASR benchmarks (LibriSpeech), and agentic benchmarks (GAIA, BFCL) are supported out of the box.
 
 ---
 
@@ -18,6 +18,9 @@ Python dependencies (see `requirements.txt`):
 django>=4.2
 datasets
 huggingface_hub
+pillow          # vision benchmarks (image decoding/saving)
+soundfile       # audio benchmarks (WAV export)
+jiwer           # audio benchmarks (Word Error Rate metric)
 openpyxl
 python-docx
 requests
@@ -50,9 +53,11 @@ export ALLOWED_HOSTS=localhost,127.0.0.1
 python manage.py migrate
 
 # 6. (Optional) Load built-in benchmarks
-python manage.py load_benchmark --list          # see available datasets
+python manage.py load_benchmark --list          # see available datasets ([IMG]/[AUD]/[AGT] = multimodal)
 python manage.py load_benchmark mmlu            # load MMLU
 python manage.py load_benchmark arc_challenge   # load ARC Challenge
+python manage.py load_benchmark mmbench         # load a vision benchmark (images saved to media/)
+python manage.py load_benchmark librispeech     # load an audio benchmark (WAVs saved to media/)
 
 # 7. Start the development server
 python manage.py runserver
@@ -131,7 +136,7 @@ python manage.py bm_provider add my-openai "OpenAI" \
     --type openai --key sk-...
 
 python manage.py bm_provider add claude Anthropic \
-    --type anthropic --key sk-ant-... --default-model claude-3-5-sonnet-20241022
+    --type anthropic --key sk-ant-... --default-model claude-opus-4-8
 
 python manage.py bm_provider add gemini "Google Gemini" \
     --type gemini --key AIza...
@@ -159,13 +164,21 @@ python manage.py bm_run <benchmark> <provider> <model> [options]
 # Examples
 python manage.py bm_run mmlu ollama llama3.2
 python manage.py bm_run medqa openai gpt-4o --temperature 0 --wait
-python manage.py bm_run arc_challenge anthropic claude-3-5-sonnet-20241022 \
+python manage.py bm_run arc_challenge anthropic claude-opus-4-8 \
     --num-questions 100 \
     --system-prompt "Answer with a single letter." \
     --few-shot 3 \
     --cot \
     --tags baseline,v1 \
     --wait
+
+# Vision benchmark — use a vision-capable model
+python manage.py bm_run mmbench ollama qwen2.5vl:7b --num-questions 50 --wait
+python manage.py bm_run mmmu openai gpt-4o --num-questions 100 --wait
+
+# Audio benchmark (ASR) — use an audio-capable model
+python manage.py bm_run librispeech openai gpt-4o-audio-preview --num-questions 50 --wait
+python manage.py bm_run librispeech groq whisper-large-v3 --num-questions 50 --wait
 ```
 
 | Option | Default | Description |
@@ -205,7 +218,8 @@ python manage.py bm_list runs --benchmark mmlu --status completed --limit 20
 
 # List benchmarks
 python manage.py bm_list benchmarks
-python manage.py bm_list benchmarks --loaded-only
+python manage.py bm_list benchmarks --loaded
+python manage.py bm_list benchmarks --type vision    # filter by type: text/vision/audio/agentic
 
 # List providers
 python manage.py bm_list providers
@@ -223,7 +237,7 @@ python manage.py bm_list suites
 python manage.py bm_bulk mmlu \
     ollama/llama3.2 \
     openai/gpt-4o \
-    anthropic/claude-3-5-sonnet-20241022
+    anthropic/claude-opus-4-8
 
 # With shared options
 python manage.py bm_bulk arc_challenge \
@@ -465,48 +479,83 @@ Full interactive API docs: [http://localhost:8000/api/docs/](http://localhost:80
 
 ## Supported Providers
 
-| Type | Description | Requires |
-|------|-------------|----------|
-| `ollama` | Local Ollama server | Running Ollama instance |
-| `vllm` | Local vLLM server | Running vLLM instance |
-| `openai` | OpenAI API | `OPENAI_API_KEY` or `--key` |
-| `anthropic` | Anthropic Claude API | `ANTHROPIC_API_KEY` or `--key` |
-| `gemini` | Google Gemini API | `GOOGLE_API_KEY` or `--key` |
-| `groq` | Groq API | `GROQ_API_KEY` or `--key` |
-| `mistral` | Mistral AI API | `MISTRAL_API_KEY` or `--key` |
-| `cohere` | Cohere API | `COHERE_API_KEY` or `--key` |
-| `together` | Together AI API | `TOGETHER_API_KEY` or `--key` |
+| Type | Description | Vision | Audio | Requires |
+|------|-------------|:------:|:-----:|----------|
+| `ollama` | Local Ollama server | ✅ | — | Running Ollama instance |
+| `vllm` | Local vLLM server | ✅ | ✅ | Running vLLM instance |
+| `openai` | OpenAI API | ✅ | ✅ | `OPENAI_API_KEY` or `--key` |
+| `anthropic` | Anthropic Claude API | ✅ | — | `ANTHROPIC_API_KEY` or `--key` |
+| `gemini` | Google Gemini API | ✅ | ✅ | `GOOGLE_API_KEY` or `--key` |
+| `groq` | Groq API | ✅ | ✅ (whisper) | `GROQ_API_KEY` or `--key` |
+| `mistral` | Mistral AI API | ✅ | — | `MISTRAL_API_KEY` or `--key` |
+| `cohere` | Cohere API | — | — | `COHERE_API_KEY` or `--key` |
+| `together` | Together AI API | ✅ | ✅ | `TOGETHER_API_KEY` or `--key` |
+
+**Vision** requires a vision-capable model (e.g. `qwen2.5vl`, `gemma3`, `llava` on Ollama; `gpt-4o`; `claude-opus-4-8`; `gemini-2.0-flash`; `pixtral`). **Audio** requires an audio-capable model (`gpt-4o-audio-preview`, `whisper-*` / `gpt-4o-transcribe` on OpenAI, `whisper-large-v3` on Groq, Gemini, or an audio model served by vLLM). Providers without vision/audio support return an explicit per-question error instead of silently evaluating without the media — scores are never computed on text-only input for a multimodal benchmark.
 
 ---
 
 ## Built-in Benchmarks
 
-A selection of the 40+ available datasets:
+A selection of the 50+ available datasets:
 
-| Slug | Name | Category |
-|------|------|----------|
-| `mmlu` | MMLU | knowledge |
-| `arc_challenge` | ARC Challenge | reasoning |
-| `arc_easy` | ARC Easy | reasoning |
-| `hellaswag` | HellaSwag | common_sense |
-| `winogrande` | WinoGrande | common_sense |
-| `piqa` | PIQA | common_sense |
-| `boolq` | BoolQ | language |
-| `openbookqa` | OpenBookQA | knowledge |
-| `truthfulqa` | TruthfulQA | knowledge |
-| `gsm8k` | GSM8K | math |
-| `math500` | MATH-500 | math |
-| `humaneval` | HumanEval | coding |
-| `mbpp` | MBPP | coding |
-| `medqa` | MedQA USMLE | knowledge |
-| `squad` | SQuAD | reading_comprehension |
-| `triviaqa` | TriviaQA | knowledge |
-| `bbh` | BIG-Bench Hard | reasoning |
-| `aqua_rat` | AQuA-RAT | math |
-| `rte` | RTE | language |
-| `multinli` | MultiNLI | language |
+| Slug | Name | Category | Type |
+|------|------|----------|------|
+| `mmlu` | MMLU | knowledge | text |
+| `arc_challenge` | ARC Challenge | reasoning | text |
+| `arc_easy` | ARC Easy | reasoning | text |
+| `hellaswag` | HellaSwag | common_sense | text |
+| `winogrande` | WinoGrande | common_sense | text |
+| `boolq` | BoolQ | language | text |
+| `openbookqa` | OpenBookQA | knowledge | text |
+| `truthfulqa` | TruthfulQA | knowledge | text |
+| `gsm8k` | GSM8K | math | text |
+| `math500` | MATH-500 | math | text |
+| `medqa_usmle` | MedQA USMLE | clinical | text |
+| `triviaqa` | TriviaQA | knowledge | text |
+| `bbh` | BIG-Bench Hard | reasoning | text |
+| `aqua_rat` | AQuA-RAT | math | text |
+| `rte` | RTE | language | text |
+| `multinli` | MultiNLI | language | text |
+| `hle` | Humanity's Last Exam | reasoning | text |
+| `scienceqa_vision` | ScienceQA (Vision) | vision | vision |
+| `ai2d` | AI2D Diagrams | vision | vision |
+| `mmmu` | MMMU (30 subjects) | vision | vision |
+| `mmbench` | MMBench | vision | vision |
+| `chartqa` | ChartQA | vision | vision |
+| `gaia` | GAIA (text-only subset) | agentic | agentic |
+| `bfcl_simple` | BFCL Simple (function calling) | agentic | agentic |
+| `librispeech` | LibriSpeech test-clean (ASR) | audio | audio |
 
 List all available datasets: `python manage.py load_benchmark --list`
+
+---
+
+## Multimodal Benchmarks
+
+BenchmarkHub supports four benchmark types: `text`, `vision`, `audio`, and `agentic`.
+
+### How it works
+
+- **Loading** — vision loaders download the dataset from HuggingFace and save each image as JPEG under `media/benchmark_images/<slug>/`; audio loaders save WAV clips under `media/benchmark_audio/<slug>/`. Paths are stored per-question (`image_paths` JSON list, `audio_path`).
+- **Running** — at evaluation time the runner base64-encodes the media and passes it to the provider backend, which embeds it in the provider's native format (Ollama `images` field, OpenAI/vLLM content parts, Anthropic image blocks, Gemini inline parts).
+- **Web UI** — the questions view (`/benchmarks/<slug>/questions/`) previews images and plays audio clips inline. The benchmark list and run-create pages show type badges and model-requirement hints.
+
+### Evaluation metrics per type
+
+| Type | Evaluation |
+|------|------------|
+| vision (MCQ: ScienceQA, AI2D, MMBench, MMMU) | Letter extraction and exact match |
+| vision (open: ChartQA) | Normalized exact/containment match |
+| agentic (GAIA) | Normalized exact match of final answer |
+| agentic (BFCL) | Function-name + required-parameter match |
+| audio (LibriSpeech) | Word Error Rate via `jiwer` — correct if WER < 0.1 |
+
+### Notes
+
+- `gaia` is a **gated** dataset — request access on HuggingFace and log in with `huggingface-cli login` before loading.
+- Providers that can't handle a modality fail explicitly per-question (visible in run results) rather than silently scoring text-only.
+- Few-shot examples are text-only; for vision benchmarks the few-shot examples do not attach their images.
 
 ---
 
