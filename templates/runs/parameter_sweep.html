@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Parameter Sweep — LLM Benchmarks{% endblock %}
+{% block title %}Parameter Sweep — BenchmarkHub{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -108,6 +108,9 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">System Prompt (shared)</label>
+              <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="base_system_prompt">
+                <option value="">— Load a saved prompt from the library —</option>
+              </select>
               <textarea name="base_system_prompt" class="form-control font-monospace" rows="4"
                         placeholder="Optional — same prompt used across all temperature variants"></textarea>
             </div>
@@ -121,6 +124,9 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">System Prompts</label>
+              <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="prompts" data-mode="append">
+                <option value="">— Add a saved prompt as a variant —</option>
+              </select>
               <textarea name="prompts" class="form-control font-monospace" rows="10"
                         placeholder="Write each prompt variant separated by a line containing only ---
 

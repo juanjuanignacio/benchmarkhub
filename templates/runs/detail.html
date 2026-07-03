@@ -28,7 +28,10 @@
     <div>
         <h1 class="h3 mb-1">{{ run.benchmark.name }}</h1>
         <p class="text-muted mb-0">
-            <code>{{ run.model_name }}</code> via {{ run.provider.name }}
+            <code>{{ run.model_name }}</code>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 ms-1"
+                    data-copy="{{ run.model_name }}" title="Copy model name"><i class="bi bi-clipboard"></i></button>
+            via {{ run.provider.name }}
         </p>
     </div>
     <div class="d-flex gap-2 align-items-center">
@@ -52,7 +55,7 @@
             <i class="bi bi-bookmark-plus me-1"></i>Save as Template
         </a>
         <form method="post" action="{% url 'runs:delete' run.pk %}"
-            onsubmit="return confirm('Delete this run and all results?')">
+            data-confirm="Delete this run and all results?">
             {% csrf_token %}
             <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="bi bi-trash me-1"></i>Delete

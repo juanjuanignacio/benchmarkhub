@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Providers - LLM Benchmark Platform{% endblock %}
+{% block title %}Providers - BenchmarkHub{% endblock %}
 {% block nav_providers %}active{% endblock %}
 
 {% block content %}
@@ -127,7 +127,7 @@
                             <i class="bi bi-pencil"></i>
                         </a>
                         <form method="post" action="{% url 'providers:delete' provider.pk %}" class="d-inline"
-                            onsubmit="return confirm('Delete provider {{ provider.name }}?')">
+                            data-confirm="Delete provider {{ provider.name }}?">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete">
                                 <i class="bi bi-trash"></i>

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ action }} Template — LLM Benchmarks{% endblock %}
+{% block title %}{{ action }} Template — BenchmarkHub{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -83,6 +83,9 @@
 
           <div class="mb-4">
             <label class="form-label fw-semibold">System Prompt</label>
+            <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="system_prompt">
+              <option value="">— Load a saved prompt from the library —</option>
+            </select>
             <textarea name="system_prompt" class="form-control font-monospace" rows="4"
                       placeholder="Optional system prompt to prepend to every question">{{ initial.system_prompt|default:'' }}</textarea>
           </div>

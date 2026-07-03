@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}New Run - LLM Benchmark Platform{% endblock %}
+{% block title %}New Run - BenchmarkHub{% endblock %}
 {% block nav_runs %}active{% endblock %}
 
 {% block content %}
@@ -80,7 +80,7 @@
                             <select name="benchmark" id="benchmarkSelect" class="form-select border-secondary" required>
                                 <option value="">-- Select Benchmark --</option>
                                 {% for b in benchmarks %}
-                                <option value="{{ b.id }}" data-questions="{{ b.num_questions }}" data-type="{{ b.benchmark_type }}">
+                                <option value="{{ b.id }}" data-questions="{{ b.num_questions }}" data-type="{{ b.benchmark_type }}" data-slug="{{ b.slug }}">
                                     {% if b.benchmark_type == 'vision' %}[IMG] {% elif b.benchmark_type == 'audio' %}[AUD] {% elif b.benchmark_type == 'agentic' %}[AGT] {% endif %}{{ b.name }} ({{ b.num_questions }} questions)
                                 </option>
                                 {% endfor %}
@@ -160,9 +160,20 @@
                         <!-- System prompt -->
                         <div class="col-12">
                             <label class="form-label fw-semibold">System Prompt <span class="text-muted fw-normal">(optional)</span></label>
+                            <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="system_prompt">
+                                <option value="">— Load a saved prompt from the library —</option>
+                            </select>
                             <textarea name="system_prompt" class="form-control border-secondary"
                                 rows="3" placeholder="You are a helpful assistant answering multiple choice questions. Answer with only the letter of the correct option."></textarea>
-                            <small class="text-muted">Leave blank to use the benchmark's default prompt format.</small>
+                            <small class="text-muted">Leave blank to use the benchmark's default prompt format. Or pick a saved prompt above (<a href="{% url 'benchmarks:prompt_list' %}">manage library</a>).</small>
+                            <div id="defaultPromptWrap" class="mt-2" style="display:none;">
+                                <a class="small text-decoration-none" data-bs-toggle="collapse" href="#defaultPromptBox" role="button">
+                                    <i class="bi bi-eye me-1"></i>Preview default prompt (sent if left blank)
+                                </a>
+                                <div class="collapse" id="defaultPromptBox">
+                                    <pre class="small mt-1 mb-0" id="defaultPromptPre" style="max-height:180px;overflow:auto;"></pre>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Notes -->
@@ -185,6 +196,7 @@
                     <div id="runPreview" class="alert alert-secondary mt-3" style="display:none;">
                         <strong>Run Preview:</strong>
                         <span id="previewText"></span>
+                        <span id="previewCost" class="ms-2"></span>
                     </div>
 
                     <div class="d-flex gap-2 mt-4">
@@ -373,11 +385,13 @@ document.getElementById('benchmarkSelect')?.addEventListener('change', function(
     } else {
         alertDiv.style.display = 'none';
     }
+    updateDefaultPrompt();
     updatePreview();
 });
 
 document.getElementById('providerSelect')?.addEventListener('change', updatePreview);
 document.getElementById('modelInput')?.addEventListener('input', updatePreview);
+document.getElementById('numQuestions')?.addEventListener('input', updatePreview);
 
 function updatePreview() {
     const bSel = document.getElementById('benchmarkSelect');
@@ -393,9 +407,52 @@ function updatePreview() {
     if (bName && pName && model) {
         text.textContent = ` ${bName} with ${model} via ${pName} (${numQ == 0 ? 'all' : numQ} questions)`;
         preview.style.display = 'block';
+        updateCostEstimate();
     } else {
         preview.style.display = 'none';
     }
+}
+
+// Live cost estimate (item 10) — uses the existing cost JSON endpoint
+let _costTimer = null;
+function updateCostEstimate() {
+    const bSel = document.getElementById('benchmarkSelect');
+    const model = document.getElementById('modelInput').value.trim();
+    const numQ = document.getElementById('numQuestions').value || 0;
+    const benchId = bSel.value;
+    const costEl = document.getElementById('previewCost');
+    if (!model || !benchId) { costEl.textContent = ''; return; }
+    clearTimeout(_costTimer);
+    _costTimer = setTimeout(() => {
+        const url = `{% url 'runs:estimate_cost' %}?model=${encodeURIComponent(model)}&benchmark_id=${benchId}&num_questions=${numQ}`;
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(d => {
+                if (d && typeof d.estimated_cost === 'number') {
+                    costEl.innerHTML = `· <i class="bi bi-cash-coin me-1"></i>~$${d.estimated_cost.toFixed(4)} <span class="text-muted">(${d.num_questions} q est.)</span>`;
+                } else { costEl.textContent = ''; }
+            })
+            .catch(() => { costEl.textContent = ''; });
+    }, 250);
+}
+
+// Default-prompt preview (item 7) — fetched from the benchmark detail API
+function updateDefaultPrompt() {
+    const bSel = document.getElementById('benchmarkSelect');
+    const opt = bSel.options[bSel.selectedIndex];
+    const slug = opt ? opt.dataset.slug : '';
+    const wrap = document.getElementById('defaultPromptWrap');
+    const pre = document.getElementById('defaultPromptPre');
+    if (!slug) { wrap.style.display = 'none'; return; }
+    fetch(`/api/v1/benchmarks/${slug}/`)
+        .then(r => r.json())
+        .then(d => {
+            if (d && d.default_prompt) {
+                pre.textContent = d.default_prompt;
+                wrap.style.display = 'block';
+            } else { wrap.style.display = 'none'; }
+        })
+        .catch(() => { wrap.style.display = 'none'; });
 }
 
 document.getElementById('runForm')?.addEventListener('submit', function() {

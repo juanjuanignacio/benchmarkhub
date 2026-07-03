@@ -1,5 +1,5 @@
 /* ===================================================
-   LLM Benchmark Platform - Main JavaScript
+   BenchmarkHub - Main JavaScript
    =================================================== */
 
 'use strict';
@@ -28,6 +28,148 @@ function bmChartPalette() {
         tick: '#5b6779', grid: 'rgba(23,32,46,0.08)',
     };
 }
+
+// -------------------------------------------------------
+// Prompt library quick-load
+// Any <select class="prompt-library-loader" data-target="FIELD_NAME">
+// is populated from the saved prompt library. Picking an option fills the
+// textarea/input named FIELD_NAME. Add data-mode="append" to append the
+// prompt (separated by a --- line) instead of replacing — used for the
+// parameter-sweep prompt-variants list.
+// -------------------------------------------------------
+function initPromptLibraryLoaders() {
+    const loaders = document.querySelectorAll('select.prompt-library-loader');
+    if (!loaders.length) return;
+
+    fetch('/benchmarks/prompts/api/')
+        .then(r => r.json())
+        .then(data => {
+            const prompts = (data && data.prompts) || [];
+            loaders.forEach(sel => {
+                if (!prompts.length) {
+                    sel.innerHTML = '<option value="">No saved prompts — create one in the Prompt Library</option>';
+                    sel.disabled = true;
+                    return;
+                }
+                prompts.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.content;
+                    opt.textContent = p.name;
+                    // Hover preview: show description + a snippet of the content
+                    const snippet = (p.content || '').slice(0, 240);
+                    opt.title = (p.description ? p.description + '\n\n' : '') + snippet +
+                                ((p.content || '').length > 240 ? '…' : '');
+                    sel.appendChild(opt);
+                });
+                sel.addEventListener('change', () => {
+                    if (!sel.value) return;
+                    const target = document.querySelector(`[name="${sel.dataset.target}"]`);
+                    if (target) {
+                        if (sel.dataset.mode === 'append') {
+                            const sep = target.value.trim() ? '\n---\n' : '';
+                            target.value = target.value.replace(/\s+$/, '') + sep + sel.value;
+                        } else {
+                            target.value = sel.value;
+                        }
+                        target.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    sel.selectedIndex = 0;  // reset so the same prompt can be picked again
+                });
+            });
+        })
+        .catch(() => { /* library unavailable — leave the plain textarea */ });
+}
+document.addEventListener('DOMContentLoaded', initPromptLibraryLoaders);
+
+// -------------------------------------------------------
+// Copy to clipboard
+// Any element with data-copy="text" (or data-copy-target="#selector"
+// to copy that element's textContent) copies on click and flashes a check.
+// -------------------------------------------------------
+function initCopyButtons() {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-copy], [data-copy-target]');
+        if (!btn) return;
+        let text = btn.getAttribute('data-copy');
+        if (!text && btn.dataset.copyTarget) {
+            const src = document.querySelector(btn.dataset.copyTarget);
+            text = src ? (src.value !== undefined && src.value !== '' ? src.value : src.textContent) : '';
+        }
+        if (text == null) return;
+        const done = () => {
+            const old = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i>';
+            btn.classList.add('text-success');
+            setTimeout(() => { btn.innerHTML = old; btn.classList.remove('text-success'); }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => {});
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); done(); } catch (_) {}
+            document.body.removeChild(ta);
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', initCopyButtons);
+
+// -------------------------------------------------------
+// Confirm before destructive actions
+// Add data-confirm="message" to a <form> or an <a>/<button>. A styled
+// modal asks for confirmation before the form submits / the link follows.
+// Optional: data-confirm-title, data-confirm-ok (button label).
+// -------------------------------------------------------
+function initConfirmActions() {
+    const modalEl = document.getElementById('bmConfirmModal');
+    if (!modalEl || typeof bootstrap === 'undefined') return;
+    const modal = new bootstrap.Modal(modalEl);
+    const bodyEl = document.getElementById('bmConfirmBody');
+    const titleEl = document.getElementById('bmConfirmTitle');
+    const okBtn = document.getElementById('bmConfirmOk');
+    let pending = null;  // {type:'form'|'link', el}
+
+    function ask(el) {
+        bodyEl.textContent = el.getAttribute('data-confirm') || 'Are you sure you want to proceed?';
+        titleEl.textContent = el.getAttribute('data-confirm-title') || 'Please confirm';
+        okBtn.innerHTML = '<i class="bi bi-check2 me-1"></i>' + (el.getAttribute('data-confirm-ok') || 'Confirm');
+        modal.show();
+    }
+
+    // Intercept form submits
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form.matches && form.matches('form[data-confirm]') && !form.dataset._confirmed) {
+            e.preventDefault();
+            pending = { type: 'form', el: form };
+            ask(form);
+        }
+    }, true);
+
+    // Intercept link/button clicks
+    document.addEventListener('click', (e) => {
+        const el = e.target.closest('a[data-confirm], button[data-confirm]');
+        if (!el || el.type === 'submit') return;  // submit buttons handled via form
+        if (el.dataset._confirmed) return;
+        e.preventDefault();
+        pending = { type: 'link', el };
+        ask(el);
+    });
+
+    okBtn.addEventListener('click', () => {
+        if (!pending) return;
+        const { type, el } = pending;
+        modal.hide();
+        if (type === 'form') {
+            el.dataset._confirmed = '1';
+            if (el.requestSubmit) el.requestSubmit(); else el.submit();
+        } else if (el.href) {
+            window.location.href = el.href;
+        }
+        pending = null;
+    });
+}
+document.addEventListener('DOMContentLoaded', initConfirmActions);
 
 // -------------------------------------------------------
 // Utility functions

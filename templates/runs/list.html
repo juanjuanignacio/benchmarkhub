@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Runs - LLM Benchmark Platform{% endblock %}
+{% block title %}Runs - BenchmarkHub{% endblock %}
 {% block nav_runs %}active{% endblock %}
 
 {% block content %}
@@ -162,7 +162,7 @@
                         </form>
                         {% endif %}
                         <form method="post" action="{% url 'runs:delete' run.pk %}" class="d-inline"
-                            onsubmit="return confirm('Delete this run and all results?')">
+                            data-confirm="Delete this run and all results?">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete">
                                 <i class="bi bi-trash"></i>
@@ -178,10 +178,13 @@
 
 <!-- Bulk actions -->
 <div id="bulkActions" class="d-none mb-3">
-    <div class="card card-body d-flex flex-row align-items-center gap-2" style="background-color:#21262d;">
+    <div class="card card-body d-flex flex-row align-items-center gap-2">
         <span class="me-2 text-muted"><span id="selectedCount">0</span> selected</span>
         <button class="btn btn-sm btn-outline-info" onclick="compareSelected()">
             <i class="bi bi-arrow-left-right me-1"></i>Compare Selected
+        </button>
+        <button class="btn btn-sm btn-outline-warning" onclick="bulkCancel()">
+            <i class="bi bi-stop-circle me-1"></i>Cancel Selected
         </button>
         <button class="btn btn-sm btn-danger" onclick="bulkDelete()">
             <i class="bi bi-trash me-1"></i>Delete Selected
@@ -259,6 +262,20 @@ async function bulkDelete() {
     const csrf = getCsrfToken();
     await Promise.all(ids.map(id =>
         fetch(`/runs/${id}/delete/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `csrfmiddlewaretoken=${csrf}`,
+            redirect: 'manual',
+        })
+    ));
+    location.reload();
+}
+async function bulkCancel() {
+    const ids = [...document.querySelectorAll('.run-checkbox:checked')].map(cb => cb.value);
+    if (!confirm(`Cancel ${ids.length} selected run(s)? Only running/pending runs are affected.`)) return;
+    const csrf = getCsrfToken();
+    await Promise.all(ids.map(id =>
+        fetch(`/runs/${id}/cancel/`, {
             method: 'POST',
             headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
             body: `csrfmiddlewaretoken=${csrf}`,

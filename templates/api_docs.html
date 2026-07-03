@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}API Documentation — LLM Benchmarks{% endblock %}
+{% block title %}API Documentation — BenchmarkHub{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -553,5 +553,20 @@ async function sendRequest() {
 function copyResponse() {
   navigator.clipboard.writeText(document.getElementById('tryOutput').textContent);
 }
+
+// Add a copy button to every code block
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.pre-copy-btn')) return;
+    pre.style.position = 'relative';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-outline-secondary pre-copy-btn';
+    btn.style.cssText = 'position:absolute;top:6px;right:6px;padding:.1rem .4rem;line-height:1;opacity:.7;';
+    btn.innerHTML = '<i class="bi bi-clipboard"></i>';
+    btn.setAttribute('data-copy', pre.textContent);  // set before appending → excludes the button
+    pre.appendChild(btn);
+  });
+});
 </script>
 {% endblock %}

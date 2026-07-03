@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Benchmark Suites - LLM Benchmark Platform{% endblock %}
+{% block title %}Benchmark Suites - BenchmarkHub{% endblock %}
 {% block nav_benchmarks %}active{% endblock %}
 
 {% block content %}
@@ -35,7 +35,7 @@
                     <i class="bi bi-eye me-1"></i>View
                 </a>
                 <form method="post" action="{% url 'benchmarks:suite_delete' suite.pk %}"
-                    onsubmit="return confirm('Delete suite {{ suite.name }}?')">
+                    data-confirm="Delete suite {{ suite.name }}?">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="bi bi-trash"></i>

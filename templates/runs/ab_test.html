@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}A/B Testing — LLM Benchmarks{% endblock %}
+{% block title %}A/B Testing — BenchmarkHub{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -69,6 +69,9 @@
                   </div>
                   <div>
                     <label class="form-label">System Prompt</label>
+                    <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="system_prompt_a">
+                      <option value="">— Load a saved prompt from the library —</option>
+                    </select>
                     <textarea name="system_prompt_a" class="form-control font-monospace" rows="6"
                               placeholder="Leave empty for no system prompt…"></textarea>
                   </div>
@@ -87,6 +90,9 @@
                   </div>
                   <div>
                     <label class="form-label">System Prompt</label>
+                    <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="system_prompt_b">
+                      <option value="">— Load a saved prompt from the library —</option>
+                    </select>
                     <textarea name="system_prompt_b" class="form-control font-monospace" rows="6"
                               placeholder="Let's think step by step…"></textarea>
                   </div>
@@ -118,46 +124,12 @@
       </div>
     </div>
     <div class="card border-secondary">
-      <div class="card-header"><i class="bi bi-book me-2"></i>Quick-load from Library</div>
-      <div class="card-body">
-        <div id="promptLibrary" class="d-flex flex-column gap-2">
-          <p class="text-muted small">Loading prompts…</p>
-        </div>
+      <div class="card-header"><i class="bi bi-book me-2"></i>Prompt Library</div>
+      <div class="card-body small text-muted">
+        Use the <strong>Load a saved prompt</strong> dropdown above each variant to fill it from your
+        <a href="{% url 'benchmarks:prompt_list' %}">saved prompts</a>.
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// Load prompts from library
-fetch('{% url "benchmarks:prompt_api" %}')
-  .then(r => r.json())
-  .then(data => {
-    const container = document.getElementById('promptLibrary');
-    if (!data.length) {
-      container.innerHTML = '<p class="text-muted small">No saved prompts. <a href="{% url "benchmarks:prompt_create" %}">Create one</a>.</p>';
-      return;
-    }
-    container.innerHTML = data.map(p => `
-      <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-outline-primary flex-fill text-start text-truncate" onclick="loadPromptA('${p.content.replace(/'/g, "\\'")}')">
-          <i class="bi bi-a-circle me-1"></i>${p.name}
-        </button>
-        <button class="btn btn-sm btn-outline-warning" onclick="loadPromptB('${p.content.replace(/'/g, "\\'")}')">B</button>
-      </div>
-    `).join('');
-  })
-  .catch(() => {
-    document.getElementById('promptLibrary').innerHTML = '<p class="text-muted small">Could not load prompts.</p>';
-  });
-
-function loadPromptA(content) {
-  document.querySelector('textarea[name="system_prompt_a"]').value = content;
-}
-function loadPromptB(content) {
-  document.querySelector('textarea[name="system_prompt_b"]').value = content;
-}
-</script>
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ suite.name }} - Suite - LLM Benchmark Platform{% endblock %}
+{% block title %}{{ suite.name }} - Suite - BenchmarkHub{% endblock %}
 {% block nav_benchmarks %}active{% endblock %}
 
 {% block content %}
@@ -19,7 +19,7 @@
     </div>
     <div class="d-flex gap-2">
         <form method="post" action="{% url 'benchmarks:suite_delete' suite.pk %}"
-            onsubmit="return confirm('Delete this suite?')">
+            data-confirm="Delete this suite?">
             {% csrf_token %}
             <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="bi bi-trash me-1"></i>Delete
@@ -90,6 +90,9 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label small fw-semibold">System Prompt</label>
+                        <select class="form-select form-select-sm mb-2 prompt-library-loader" data-target="system_prompt">
+                          <option value="">— Load a saved prompt from the library —</option>
+                        </select>
                         <textarea name="system_prompt" class="form-control form-control-sm" rows="2"></textarea>
                     </div>
                     <div class="mb-3">

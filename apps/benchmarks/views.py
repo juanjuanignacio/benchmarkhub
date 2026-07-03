@@ -64,9 +64,26 @@ class BenchmarkListView(ListView):
                 'benchmark': bench,
                 'is_loaded': bench is not None and bench.is_loaded,
             })
+        # Filters applied server-side so the "no results" state is accurate
+        category = self.request.GET.get('category', '')
+        btype = self.request.GET.get('type', '')
+        q = self.request.GET.get('q', '').strip()
+        if category:
+            registry_info = [i for i in registry_info if i['category'] == category]
+        if btype:
+            registry_info = [i for i in registry_info if i['benchmark_type'] == btype]
+        if q:
+            ql = q.lower()
+            registry_info = [
+                info for info in registry_info
+                if ql in info['slug'].lower()
+                or ql in (info['name'] or '').lower()
+                or ql in (info['description'] or '').lower()
+            ]
         ctx['registry_info'] = registry_info
         ctx['category_filter'] = self.request.GET.get('category', '')
         ctx['type_filter'] = self.request.GET.get('type', '')
+        ctx['q_filter'] = q
         ctx['categories'] = Benchmark.CATEGORY_CHOICES
         ctx['benchmark_types'] = Benchmark.BENCHMARK_TYPE_CHOICES
         return ctx

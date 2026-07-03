@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Benchmarks - LLM Benchmark Platform{% endblock %}
+{% block title %}Benchmarks - BenchmarkHub{% endblock %}
 {% block nav_benchmarks %}active{% endblock %}
 
 {% block content %}
@@ -9,8 +9,13 @@
         <p class="text-muted mb-0">{{ registry_info|length }} benchmarks available</p>
     </div>
     <div>
-        <!-- Category and type filters -->
-        <form method="get" class="d-flex gap-2">
+        <!-- Search + category and type filters -->
+        <form method="get" class="d-flex gap-2 flex-wrap">
+            <div class="input-group input-group-sm" style="width:220px;">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ q_filter }}" class="form-control form-control-sm border-secondary"
+                       placeholder="Search benchmarks…">
+            </div>
             <select name="type" class="form-select form-select-sm border-secondary" onchange="this.form.submit()">
                 <option value="">All Types</option>
                 {% for value, label in benchmark_types %}
@@ -23,8 +28,10 @@
                 <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            {% if category_filter or type_filter %}
+            {% if category_filter or type_filter or q_filter %}
             <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+            {% else %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-search"></i></button>
             {% endif %}
         </form>
     </div>
@@ -32,8 +39,6 @@
 
 <div class="row g-3">
     {% for info in registry_info %}
-    {% if not category_filter or info.category == category_filter %}
-    {% if not type_filter or info.benchmark_type == type_filter %}
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 {% if not info.is_loaded %}opacity-75{% endif %}">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -128,7 +133,7 @@
                 </button>
                 {% if info.is_loaded %}
                 <form method="post" action="{% url 'benchmarks:delete' info.slug %}" class="d-inline"
-                    onsubmit="return confirm('Delete {{ info.name }} and all its questions?')">
+                    data-confirm="Delete {{ info.name }} and all its questions?">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="bi bi-trash"></i>
@@ -176,15 +181,18 @@
             </div>
         </div>
     </div>
-    {% endif %}
-    {% endif %}
     {% endfor %}
 </div>
 
 {% if not registry_info %}
 <div class="text-center py-5">
-    <i class="bi bi-collection display-1 text-muted"></i>
+    <i class="bi bi-search display-1 text-muted"></i>
+    {% if q_filter or category_filter or type_filter %}
+    <p class="text-muted mt-3">No benchmarks match your search or filters.</p>
+    <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary btn-sm">Clear search &amp; filters</a>
+    {% else %}
     <p class="text-muted mt-3">No benchmarks available.</p>
+    {% endif %}
 </div>
 {% endif %}
 

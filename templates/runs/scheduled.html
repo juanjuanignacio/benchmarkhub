@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Scheduled Runs — LLM Benchmarks{% endblock %}
+{% block title %}Scheduled Runs — BenchmarkHub{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -73,7 +73,7 @@
                   <i class="bi {% if sr.is_active %}bi-pause-fill{% else %}bi-play-fill{% endif %}"></i>
                 </button>
               </form>
-              <form method="post" action="{% url 'runs:scheduled_delete' sr.pk %}" onsubmit="return confirm('Delete scheduled run \'{{ sr.name }}\'?')">
+              <form method="post" action="{% url 'runs:scheduled_delete' sr.pk %}" data-confirm="Delete scheduled run '{{ sr.name }}'?">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline-danger">
                   <i class="bi bi-trash"></i>

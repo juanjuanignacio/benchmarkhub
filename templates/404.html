@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Page not found — BenchmarkHub{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
+  <div class="display-1 fw-bold" style="letter-spacing:-2px;">404</div>
+  <h3 class="mb-2">Page not found</h3>
+  <p class="text-muted mb-4" style="max-width:460px;">
+    The page you're looking for doesn't exist or may have been moved.
+    Check the URL, or head back to the dashboard.
+  </p>
+  <div class="d-flex gap-2">
+    <a href="{% url 'dashboard' %}" class="btn btn-primary"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+    <a href="{% url 'benchmarks:list' %}" class="btn btn-outline-secondary"><i class="bi bi-grid me-1"></i>Benchmarks</a>
+  </div>
+</div>
+{% endblock %}

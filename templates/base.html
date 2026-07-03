@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}LLM Benchmark Platform{% endblock %}</title>
+    <title>{% block title %}BenchmarkHub{% endblock %}</title>
+    {% load static %}
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
     <!-- Bootstrap 5.3 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
@@ -30,7 +31,7 @@
 <nav class="navbar navbar-expand-lg bm-navbar sticky-top">
     <div class="container-fluid">
         <a class="navbar-brand fw-bold text-primary" href="{% url 'dashboard' %}">
-            <i class="bi bi-speedometer2 me-2"></i>LLM Benchmarks
+            <i class="bi bi-speedometer2 me-2"></i>BenchmarkHub
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -279,6 +280,25 @@
 
         {% block content %}{% endblock %}
     </main>
+</div>
+
+<!-- Reusable confirm modal (triggered by any element with data-confirm="…") -->
+<div class="modal fade" id="bmConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i><span id="bmConfirmTitle">Please confirm</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="bmConfirmBody" class="mb-0">Are you sure you want to proceed?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="bmConfirmOk"><i class="bi bi-trash me-1"></i>Confirm</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Bootstrap 5.3 JS -->

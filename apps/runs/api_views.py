@@ -34,6 +34,24 @@ def _benchmark_to_dict(b, include_subjects=False):
             .values_list('subject', flat=True)
             .distinct()
         )
+        # Preview of the default prompt (what a run sends if System Prompt is blank),
+        # built from the first question the same way the runner does.
+        d['default_prompt'] = None
+        try:
+            from apps.benchmarks.registry import get_loader
+            loader = get_loader(b.slug)
+            sample = BenchmarkQuestion.objects.filter(benchmark=b).first()
+            if loader and sample:
+                if b.prompt_template:
+                    d['default_prompt'] = b.prompt_template.format(
+                        question=sample.question,
+                        choice_a=sample.choice_a or '', choice_b=sample.choice_b or '',
+                        choice_c=sample.choice_c or '', choice_d=sample.choice_d or '',
+                    )
+                else:
+                    d['default_prompt'] = loader.format_prompt(sample)
+        except Exception:
+            d['default_prompt'] = None
     return d
 
 
