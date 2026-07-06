@@ -22,7 +22,6 @@ pillow          # vision benchmarks (image decoding/saving)
 soundfile       # audio benchmarks (WAV export)
 jiwer           # audio benchmarks (Word Error Rate metric)
 openpyxl
-python-docx
 requests
 whitenoise
 ```
@@ -596,9 +595,6 @@ benchmark_web_2_style/
 ├── config/                           # Django settings and URL routing
 ├── templates/                        # 47 HTML templates
 ├── static/                           # Bootstrap 5, custom CSS, JavaScript
-├── BenchmarkHub_ApplicationNote.docx # Application note (no-code version)
-├── BenchmarkHub_Supplementary.docx   # Detailed feature supplement
-├── make_docx.py                      # Script to regenerate .docx files
 └── requirements.txt
 ```
 
@@ -628,6 +624,5 @@ Key `config/settings.py` options:
 | Static files | WhiteNoise with compressed manifest |
 | LLM datasets | HuggingFace `datasets` + `huggingface_hub` |
 | Excel export | openpyxl |
-| Document generation | python-docx |
 | HTTP client | requests |
 | Statistics | McNemar's test (χ²) for A/B testing |
